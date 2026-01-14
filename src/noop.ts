@@ -20,6 +20,31 @@
 
 // No-op logger that does nothing
 const noop = () => {};
+const noopAsync = async () => false;
+
+// No-op span
+const noopSpan = {
+  id: '',
+  event: {} as never,
+  ended: true,
+  debug: noop,
+  info: noop,
+  warn: noop,
+  error: noop,
+  span: () => noopSpan,
+  end: noop,
+  fail: noop,
+};
+
+// No-op context logger
+const noopContextLogger = {
+  debug: noop,
+  info: noop,
+  warn: noop,
+  error: noop,
+  span: () => noopSpan,
+  withContext: () => noopContextLogger,
+};
 
 export const logger = {
   info: noop,
@@ -33,6 +58,21 @@ export const logger = {
   subscribe: () => noop,
   getSessionId: () => '',
   getConfig: () => ({ maxLogs: 1000, persist: false, minLevel: 'debug' as const, enabled: false }),
+  // Span API
+  span: () => noopSpan,
+  getSpans: () => [] as const,
+  getSpan: () => undefined,
+  getSpanLogs: () => [] as const,
+  subscribeSpans: () => noop,
+  // Context API
+  setGlobalContext: noop,
+  updateGlobalContext: noop,
+  getGlobalContext: () => ({}),
+  clearGlobalContext: noop,
+  withContext: () => noopContextLogger,
+  // Export API
+  exportLogs: () => '[]',
+  copyLogs: noopAsync,
 };
 
 export const DevLoggerUI = {
@@ -81,7 +121,19 @@ export const LogPersistence = {
 export const VERSION = '0.1.0';
 
 // Types are still exported for type-checking
-export type { LogEvent, LogLevel, LoggerConfig, Source, LogSubscriber, Unsubscribe } from './core/types';
+export type {
+  LogEvent,
+  LogLevel,
+  LoggerConfig,
+  Source,
+  LogSubscriber,
+  SpanSubscriber,
+  Unsubscribe,
+  LogContext,
+  SpanEvent,
+  SpanStatus,
+} from './core/types';
 export type { FilterState } from './ui/filter';
 export type { ErrorCaptureConfig } from './core/error-capture';
 export type { PersistenceConfig } from './core/persistence';
+export type { ExportOptions, LogSpan, ContextLogger } from './core/logger';

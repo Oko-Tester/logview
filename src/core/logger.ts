@@ -10,10 +10,30 @@ import type {
   LogLevel,
   LoggerConfig,
   LogSubscriber,
+  SpanSubscriber,
   Unsubscribe,
   Source,
+  LogContext,
+  SpanEvent,
+  SpanStatus,
 } from './types';
 import { LOG_LEVEL_VALUES } from './types';
+
+/**
+ * Export format options
+ */
+export interface ExportOptions {
+  /** Export format: 'json' or 'text' */
+  format?: 'json' | 'text';
+  /** Include only logs from the last N milliseconds */
+  lastMs?: number;
+  /** Include only logs matching these levels */
+  levels?: LogLevel[];
+  /** Include only logs matching this search */
+  search?: string;
+  /** Pretty print JSON (default: true) */
+  pretty?: boolean;
+}
 
 /**
  * Default configuration values
@@ -130,6 +150,153 @@ function cleanFilePath(path: string): string {
 }
 
 /**
+ * Generate a unique span ID
+ */
+function generateSpanId(): string {
+  return `span_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
+}
+
+/**
+ * Log Span class - represents a grouped set of related logs
+ */
+class LogSpan {
+  private logger: LoggerCore;
+  private _event: SpanEvent;
+  private _ended = false;
+
+  constructor(
+    logger: LoggerCore,
+    name: string,
+    context?: LogContext,
+    parentId?: string
+  ) {
+    this.logger = logger;
+    this._event = {
+      id: generateSpanId(),
+      name,
+      startTime: Date.now(),
+      status: 'running',
+      parentId,
+      context,
+      source: captureSource(),
+      sessionId: logger.getSessionId(),
+    };
+    logger['notifySpan'](this._event);
+  }
+
+  /** Get span ID */
+  get id(): string {
+    return this._event.id;
+  }
+
+  /** Get span event data */
+  get event(): Readonly<SpanEvent> {
+    return this._event;
+  }
+
+  /** Check if span has ended */
+  get ended(): boolean {
+    return this._ended;
+  }
+
+  /** Log debug within this span */
+  debug(message: string, ...data: unknown[]): void {
+    if (!this._ended) {
+      this.logger['logWithSpan']('debug', message, data, this._event.id, this._event.context);
+    }
+  }
+
+  /** Log info within this span */
+  info(message: string, ...data: unknown[]): void {
+    if (!this._ended) {
+      this.logger['logWithSpan']('info', message, data, this._event.id, this._event.context);
+    }
+  }
+
+  /** Log warn within this span */
+  warn(message: string, ...data: unknown[]): void {
+    if (!this._ended) {
+      this.logger['logWithSpan']('warn', message, data, this._event.id, this._event.context);
+    }
+  }
+
+  /** Log error within this span */
+  error(message: string, ...data: unknown[]): void {
+    if (!this._ended) {
+      this.logger['logWithSpan']('error', message, data, this._event.id, this._event.context);
+    }
+  }
+
+  /** Create a child span */
+  span(name: string, context?: LogContext): LogSpan {
+    const mergedContext = { ...this._event.context, ...context };
+    return new LogSpan(this.logger, name, mergedContext, this._event.id);
+  }
+
+  /** End the span successfully */
+  end(): void {
+    this.finish('success');
+  }
+
+  /** End the span with error status */
+  fail(error?: Error | string): void {
+    if (error) {
+      this.error(typeof error === 'string' ? error : error.message, error);
+    }
+    this.finish('error');
+  }
+
+  /** Internal finish method */
+  private finish(status: SpanStatus): void {
+    if (this._ended) return;
+    this._ended = true;
+    this._event.endTime = Date.now();
+    this._event.duration = this._event.endTime - this._event.startTime;
+    this._event.status = status;
+    this.logger['notifySpan'](this._event);
+  }
+}
+
+/**
+ * Context-bound logger - logs with specific context attached
+ */
+class ContextLogger {
+  private logger: LoggerCore;
+  private context: LogContext;
+
+  constructor(logger: LoggerCore, context: LogContext) {
+    this.logger = logger;
+    this.context = context;
+  }
+
+  debug(message: string, ...data: unknown[]): void {
+    this.logger['logWithContext']('debug', message, data, this.context);
+  }
+
+  info(message: string, ...data: unknown[]): void {
+    this.logger['logWithContext']('info', message, data, this.context);
+  }
+
+  warn(message: string, ...data: unknown[]): void {
+    this.logger['logWithContext']('warn', message, data, this.context);
+  }
+
+  error(message: string, ...data: unknown[]): void {
+    this.logger['logWithContext']('error', message, data, this.context);
+  }
+
+  /** Create a span with this context */
+  span(name: string, extraContext?: LogContext): LogSpan {
+    return this.logger.span(name, { ...this.context, ...extraContext });
+  }
+
+  /** Create a new context logger with merged context */
+  withContext(extraContext: LogContext): ContextLogger {
+    return new ContextLogger(this.logger, { ...this.context, ...extraContext });
+  }
+}
+
+/**
  * Core Logger Class
  *
  * Lifecycle of a log:
@@ -141,9 +308,12 @@ function cleanFilePath(path: string): string {
  */
 class LoggerCore {
   private logs: LogEvent[] = [];
+  private spans: Map<string, SpanEvent> = new Map();
   private subscribers: Set<LogSubscriber> = new Set();
+  private spanSubscribers: Set<SpanSubscriber> = new Set();
   private config: Required<LoggerConfig> = { ...DEFAULT_CONFIG };
   private sessionId: string;
+  private globalContext: LogContext = {};
 
   constructor() {
     this.sessionId = generateSessionId();
@@ -152,7 +322,7 @@ class LoggerCore {
   /**
    * Core logging method - all public methods delegate to this
    */
-  private log(level: LogLevel, message: string, data: unknown[]): void {
+  private log(level: LogLevel, message: string, data: unknown[], context?: LogContext, spanId?: string): void {
     // Zero-Throw Policy: wrap everything in try-catch
     try {
       // Check if logging is enabled
@@ -165,6 +335,11 @@ class LoggerCore {
         return;
       }
 
+      // Merge global context with provided context
+      const mergedContext = Object.keys(this.globalContext).length > 0 || context
+        ? { ...this.globalContext, ...context }
+        : undefined;
+
       // Step 1 & 2: Create and enrich log event
       const event: LogEvent = {
         id: generateLogId(),
@@ -174,6 +349,8 @@ class LoggerCore {
         data: this.safeCloneData(data),
         source: captureSource(),
         sessionId: this.sessionId,
+        context: mergedContext,
+        spanId,
       };
 
       // Step 3: Store with rotation
@@ -186,6 +363,34 @@ class LoggerCore {
       // Optionally log to console for debugging the debugger
       if (typeof console !== 'undefined' && console.warn) {
         console.warn('[DevLogger] Internal error:', e);
+      }
+    }
+  }
+
+  /**
+   * Log with context (used by ContextLogger)
+   */
+  private logWithContext(level: LogLevel, message: string, data: unknown[], context: LogContext): void {
+    this.log(level, message, data, context);
+  }
+
+  /**
+   * Log with span (used by LogSpan)
+   */
+  private logWithSpan(level: LogLevel, message: string, data: unknown[], spanId: string, context?: LogContext): void {
+    this.log(level, message, data, context, spanId);
+  }
+
+  /**
+   * Notify span subscribers
+   */
+  private notifySpan(span: SpanEvent): void {
+    this.spans.set(span.id, span);
+    for (const subscriber of this.spanSubscribers) {
+      try {
+        subscriber(span);
+      } catch {
+        // Don't let subscriber errors break logging
       }
     }
   }
@@ -320,11 +525,12 @@ class LoggerCore {
   }
 
   /**
-   * Clear all stored logs
+   * Clear all stored logs and spans
    */
   clear(): void {
     try {
       this.logs = [];
+      this.spans.clear();
     } catch {
       // Silent fail
     }
@@ -390,7 +596,185 @@ class LoggerCore {
   getConfig(): Readonly<Required<LoggerConfig>> {
     return { ...this.config };
   }
+
+  // ========== Span API ==========
+
+  /**
+   * Create a new span for grouping related logs
+   */
+  span(name: string, context?: LogContext): LogSpan {
+    try {
+      return new LogSpan(this, name, context);
+    } catch {
+      // Return a no-op span on failure
+      return new LogSpan(this, name, context);
+    }
+  }
+
+  /**
+   * Get all spans
+   */
+  getSpans(): readonly SpanEvent[] {
+    return Array.from(this.spans.values());
+  }
+
+  /**
+   * Get a specific span by ID
+   */
+  getSpan(spanId: string): SpanEvent | undefined {
+    return this.spans.get(spanId);
+  }
+
+  /**
+   * Get logs belonging to a specific span
+   */
+  getSpanLogs(spanId: string): readonly LogEvent[] {
+    return this.logs.filter((log) => log.spanId === spanId);
+  }
+
+  /**
+   * Subscribe to span events
+   */
+  subscribeSpans(fn: SpanSubscriber): Unsubscribe {
+    try {
+      this.spanSubscribers.add(fn);
+      return () => {
+        this.spanSubscribers.delete(fn);
+      };
+    } catch {
+      return () => {};
+    }
+  }
+
+  // ========== Context API ==========
+
+  /**
+   * Set global context that will be attached to all logs
+   */
+  setGlobalContext(context: LogContext): void {
+    try {
+      this.globalContext = { ...context };
+    } catch {
+      // Silent fail
+    }
+  }
+
+  /**
+   * Update global context (merge with existing)
+   */
+  updateGlobalContext(context: LogContext): void {
+    try {
+      this.globalContext = { ...this.globalContext, ...context };
+    } catch {
+      // Silent fail
+    }
+  }
+
+  /**
+   * Get current global context
+   */
+  getGlobalContext(): Readonly<LogContext> {
+    return { ...this.globalContext };
+  }
+
+  /**
+   * Clear global context
+   */
+  clearGlobalContext(): void {
+    this.globalContext = {};
+  }
+
+  /**
+   * Create a context-bound logger
+   */
+  withContext(context: LogContext): ContextLogger {
+    return new ContextLogger(this, context);
+  }
+
+  // ========== Export API ==========
+
+  /**
+   * Export logs in specified format
+   */
+  exportLogs(options: ExportOptions = {}): string {
+    try {
+      const {
+        format = 'json',
+        lastMs,
+        levels,
+        search,
+        pretty = true,
+      } = options;
+
+      let filteredLogs = [...this.logs];
+
+      // Filter by time
+      if (lastMs !== undefined && lastMs > 0) {
+        const cutoff = Date.now() - lastMs;
+        filteredLogs = filteredLogs.filter((log) => log.timestamp >= cutoff);
+      }
+
+      // Filter by levels
+      if (levels && levels.length > 0) {
+        const levelSet = new Set(levels);
+        filteredLogs = filteredLogs.filter((log) => levelSet.has(log.level));
+      }
+
+      // Filter by search
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filteredLogs = filteredLogs.filter(
+          (log) =>
+            log.message.toLowerCase().includes(searchLower) ||
+            JSON.stringify(log.data).toLowerCase().includes(searchLower)
+        );
+      }
+
+      if (format === 'text') {
+        return this.formatLogsAsText(filteredLogs);
+      }
+
+      return pretty
+        ? JSON.stringify(filteredLogs, null, 2)
+        : JSON.stringify(filteredLogs);
+    } catch {
+      return '[]';
+    }
+  }
+
+  /**
+   * Format logs as human-readable text
+   */
+  private formatLogsAsText(logs: LogEvent[]): string {
+    return logs
+      .map((log) => {
+        const time = new Date(log.timestamp).toISOString();
+        const level = log.level.toUpperCase().padEnd(5);
+        const source = `${log.source.file}:${log.source.line}`;
+        const context = log.context ? ` [${Object.entries(log.context).map(([k, v]) => `${k}=${v}`).join(', ')}]` : '';
+        const span = log.spanId ? ` (span: ${log.spanId})` : '';
+        const data = log.data.length > 0 ? `\n  Data: ${JSON.stringify(log.data)}` : '';
+        return `[${time}] ${level} ${log.message}${context}${span}\n  Source: ${source}${data}`;
+      })
+      .join('\n\n');
+  }
+
+  /**
+   * Copy logs to clipboard
+   */
+  async copyLogs(options: ExportOptions = {}): Promise<boolean> {
+    try {
+      const exported = this.exportLogs(options);
+      await navigator.clipboard.writeText(exported);
+      return true;
+    } catch {
+      return false;
+    }
+  }
 }
 
 // Singleton export
 export const logger = new LoggerCore();
+
+// Export LogSpan type for external use
+export type { LogSpan, ContextLogger };

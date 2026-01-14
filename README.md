@@ -11,6 +11,9 @@ A lightweight, browser-based dev logger with a beautiful debug UI. Zero dependen
 - 🔒 **Crash-Resistant** - Never throws, never breaks your app
 - ⚡ **Global Error Capture** - Automatically catch uncaught errors and unhandled rejections
 - 💾 **Persistence & Crash Recovery** - Survive page crashes with automatic log persistence
+- 🎯 **Spans & Grouping** - Group related logs with timing and nested spans
+- 🏷️ **Context & Tags** - Attach requestId, userId, or any context to logs
+- 📤 **Export & Share** - Copy logs as JSON or text for bug reports
 - 🌐 **Framework-Agnostic** - Works with React, Vue, Svelte, vanilla JS, or any framework
 
 ## Installation
@@ -84,6 +87,121 @@ const sessionId = logger.getSessionId();
 
 // Get current config
 const config = logger.getConfig();
+```
+
+### Spans (Log Grouping)
+
+Group related logs together with timing and status:
+
+```typescript
+// Create a span for an operation
+const span = logger.span('Load user profile');
+span.info('Fetching from API...');
+span.debug('Request payload', { userId: 123 });
+
+// End successfully
+span.end(); // status: 'success', duration calculated
+
+// Or end with error
+span.fail('Network timeout'); // status: 'error'
+span.fail(new Error('Timeout')); // also logs the error
+```
+
+#### Nested Spans
+
+```typescript
+const requestSpan = logger.span('HTTP Request', { requestId: 'abc-123' });
+
+const fetchSpan = requestSpan.span('Fetch Data');
+fetchSpan.info('Fetching...');
+fetchSpan.end();
+
+const processSpan = requestSpan.span('Process Data');
+processSpan.info('Processing...');
+processSpan.end();
+
+requestSpan.end(); // Parent span ends after children
+```
+
+#### Span Methods
+
+```typescript
+// Get all spans
+const spans = logger.getSpans();
+
+// Get specific span
+const span = logger.getSpan(spanId);
+
+// Get logs belonging to a span
+const spanLogs = logger.getSpanLogs(spanId);
+
+// Subscribe to span events
+const unsub = logger.subscribeSpans((span) => {
+  if (span.status === 'error') {
+    console.log(`Span ${span.name} failed after ${span.duration}ms`);
+  }
+});
+```
+
+### Context (Tags)
+
+Attach contextual information to logs for filtering and correlation:
+
+```typescript
+// Set global context (attached to ALL logs)
+logger.setGlobalContext({ env: 'development', build: '1.2.3' });
+
+// Update global context
+logger.updateGlobalContext({ userId: 'user-456' });
+
+// Clear global context
+logger.clearGlobalContext();
+```
+
+#### Context-Bound Logger
+
+```typescript
+// Create a logger with specific context
+const reqLogger = logger.withContext({ requestId: 'req-123' });
+reqLogger.info('Request started'); // includes requestId
+
+// Chain contexts
+const userLogger = reqLogger.withContext({ userId: 'user-456' });
+userLogger.info('User action'); // includes both requestId and userId
+
+// Context loggers can also create spans
+const span = reqLogger.span('Process Request');
+span.info('Processing...'); // inherits requestId
+span.end();
+```
+
+### Export
+
+Export logs for sharing, bug reports, or analysis:
+
+```typescript
+// Export as JSON (pretty printed)
+const json = logger.exportLogs({ format: 'json' });
+
+// Export as compact JSON
+const compact = logger.exportLogs({ format: 'json', pretty: false });
+
+// Export as human-readable text
+const text = logger.exportLogs({ format: 'text' });
+
+// Filter exports
+const filtered = logger.exportLogs({
+  format: 'json',
+  levels: ['warn', 'error'],     // Only warnings and errors
+  lastMs: 30000,                  // Last 30 seconds
+  search: 'user',                 // Contains "user"
+});
+
+// Copy to clipboard
+const success = await logger.copyLogs({ format: 'json' });
+if (success) {
+  console.log('Logs copied!');
+}
 ```
 
 ### DevLoggerUI
@@ -245,9 +363,14 @@ The `noop` export provides the same API but all functions are no-ops, resulting 
 ## Types
 
 ```typescript
-import type { LogEvent, LogLevel, LoggerConfig, Source, FilterState, ErrorCaptureConfig } from 'devlogger';
+import type {
+  LogEvent, LogLevel, LoggerConfig, Source, FilterState,
+  ErrorCaptureConfig, LogContext, SpanEvent, SpanStatus, ExportOptions
+} from 'devlogger';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+type SpanStatus = 'running' | 'success' | 'error';
+type LogContext = Record<string, string | number | boolean>;
 
 interface Source {
   file: string;
@@ -264,12 +387,35 @@ interface LogEvent {
   data: unknown[];
   source: Source;
   sessionId: string;
+  context?: LogContext;  // Attached context/tags
+  spanId?: string;       // Parent span ID
+}
+
+interface SpanEvent {
+  id: string;
+  name: string;
+  startTime: number;
+  endTime?: number;
+  duration?: number;
+  status: SpanStatus;
+  parentId?: string;     // For nested spans
+  context?: LogContext;
+  source: Source;
+  sessionId: string;
 }
 
 interface LoggerConfig {
   maxLogs?: number;
   minLevel?: LogLevel;
   enabled?: boolean;
+}
+
+interface ExportOptions {
+  format?: 'json' | 'text';
+  lastMs?: number;        // Filter by time
+  levels?: LogLevel[];    // Filter by levels
+  search?: string;        // Filter by text
+  pretty?: boolean;       // Pretty print JSON
 }
 
 interface FilterState {

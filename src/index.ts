@@ -29,9 +29,22 @@
  * logger.warn('Cache miss');
  * logger.error('API failed', new Error('Timeout'));
  * logger.debug('Rendering component', props);
+ *
+ * // With context
+ * logger.withContext({ requestId: '123' }).info('Request started');
+ *
+ * // With spans
+ * const span = logger.span('Load user');
+ * span.info('Fetching...');
+ * span.end();
  * ```
  */
 export { logger } from './core/logger';
+
+/**
+ * Export options for log export functionality.
+ */
+export type { ExportOptions, LogSpan, ContextLogger } from './core/logger';
 
 /**
  * Core type definitions for log events and configuration.
@@ -47,8 +60,16 @@ export type {
   Source,
   /** Callback function for log subscriptions */
   LogSubscriber,
+  /** Callback function for span events */
+  SpanSubscriber,
   /** Function to unsubscribe from log events */
   Unsubscribe,
+  /** Context/tags for log correlation */
+  LogContext,
+  /** Span event data */
+  SpanEvent,
+  /** Span status: 'running' | 'success' | 'error' */
+  SpanStatus,
 } from './core/types';
 
 // ============================================================================

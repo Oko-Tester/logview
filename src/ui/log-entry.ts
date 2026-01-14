@@ -65,20 +65,37 @@ function escapeHtml(str: string): string {
 }
 
 /**
+ * Format context tags for display
+ */
+function formatContext(context: Record<string, string | number | boolean> | undefined): string {
+  if (!context || Object.keys(context).length === 0) {
+    return '';
+  }
+  return Object.entries(context)
+    .map(([k, v]) => `${k}=${v}`)
+    .join(' · ');
+}
+
+/**
  * Create a log entry DOM element
  */
 export function createLogEntry(log: LogEvent): HTMLElement {
   const entry = document.createElement('div');
-  entry.className = 'log-entry';
+  entry.className = `log-entry${log.spanId ? ' log-entry-in-span' : ''}`;
   entry.dataset.id = log.id;
+  if (log.spanId) {
+    entry.dataset.spanId = log.spanId;
+  }
 
   const hasData = log.data.length > 0;
+  const hasContext = log.context && Object.keys(log.context).length > 0;
   const dataId = `data-${log.id}`;
 
   entry.innerHTML = `
     <div class="log-entry-header">
       <span class="log-level log-level-${log.level}">${log.level}</span>
       <span class="log-time">${formatTime(log.timestamp)}</span>
+      ${hasContext ? `<span class="log-context" title="Context">${escapeHtml(formatContext(log.context))}</span>` : ''}
       <span class="log-source" title="${escapeHtml(formatSource(log.source))}">${escapeHtml(formatSource(log.source))}</span>
     </div>
     <div class="log-message">${escapeHtml(log.message)}</div>

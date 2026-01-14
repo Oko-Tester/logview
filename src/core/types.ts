@@ -25,6 +25,16 @@ export interface Source {
 }
 
 /**
+ * Context/tags for log correlation
+ */
+export type LogContext = Record<string, string | number | boolean>;
+
+/**
+ * Span status for grouped logs
+ */
+export type SpanStatus = 'running' | 'success' | 'error';
+
+/**
  * A single log event with all metadata
  */
 export interface LogEvent {
@@ -41,6 +51,36 @@ export interface LogEvent {
   /** Source code location */
   source: Source;
   /** Browser session identifier */
+  sessionId: string;
+  /** Optional context/tags for filtering */
+  context?: LogContext;
+  /** Span ID if this log belongs to a span */
+  spanId?: string;
+}
+
+/**
+ * A span (grouped logs) event
+ */
+export interface SpanEvent {
+  /** Unique span identifier */
+  id: string;
+  /** Span name/label */
+  name: string;
+  /** Start timestamp */
+  startTime: number;
+  /** End timestamp (set when span ends) */
+  endTime?: number;
+  /** Duration in milliseconds */
+  duration?: number;
+  /** Current status */
+  status: SpanStatus;
+  /** Parent span ID for nesting */
+  parentId?: string;
+  /** Context inherited by all logs in this span */
+  context?: LogContext;
+  /** Source where span was created */
+  source: Source;
+  /** Session ID */
   sessionId: string;
 }
 
@@ -62,6 +102,11 @@ export interface LoggerConfig {
  * Subscriber callback for new log events
  */
 export type LogSubscriber = (event: LogEvent) => void;
+
+/**
+ * Subscriber callback for span events
+ */
+export type SpanSubscriber = (event: SpanEvent) => void;
 
 /**
  * Function to unsubscribe from log events

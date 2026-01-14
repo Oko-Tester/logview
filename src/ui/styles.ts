@@ -234,6 +234,23 @@ export const STYLES = `
     color: ${COLORS.levelInfo};
   }
 
+  .log-context {
+    font-size: 10px;
+    color: ${COLORS.levelInfo};
+    background: rgba(55, 148, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 3px;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .log-entry-in-span {
+    border-left: 2px solid ${COLORS.levelInfo};
+    padding-left: 10px;
+  }
+
   .log-message {
     color: var(--text-primary);
     word-break: break-word;

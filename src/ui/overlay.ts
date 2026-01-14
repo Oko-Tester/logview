@@ -29,6 +29,19 @@ import {
 /** Keyboard shortcut for toggle */
 const SHORTCUT = { key: 'l', ctrlKey: true, shiftKey: true };
 
+/**
+ * Show feedback after copy action
+ */
+function showCopyFeedback(button: HTMLButtonElement, success: boolean): void {
+  const originalText = button.textContent;
+  button.textContent = success ? '✓' : '✗';
+  button.disabled = true;
+  setTimeout(() => {
+    button.textContent = originalText;
+    button.disabled = false;
+  }, 1000);
+}
+
 /** DevLogger UI State */
 interface UIState {
   initialized: boolean;
@@ -92,6 +105,8 @@ function createOverlayDOM(shadow: ShadowRoot): void {
         <span class="devlogger-badge">${filteredLogs.length}</span>
       </div>
       <div class="devlogger-actions">
+        <button class="devlogger-btn" data-action="copy-json" title="Copy as JSON">JSON</button>
+        <button class="devlogger-btn" data-action="copy-text" title="Copy as Text">TXT</button>
         <button class="devlogger-btn" data-action="clear" title="Clear logs">Clear</button>
         <button class="devlogger-btn devlogger-btn-primary" data-action="popout" title="Open in new window">Pop-out</button>
         <button class="devlogger-btn" data-action="close" title="Close (Ctrl+Shift+L)">✕</button>
@@ -112,8 +127,9 @@ function createOverlayDOM(shadow: ShadowRoot): void {
 
   // Add button handlers
   container.querySelectorAll('[data-action]').forEach((btn) => {
-    btn.addEventListener('click', (e) => {
+    btn.addEventListener('click', async (e) => {
       const action = (e.currentTarget as HTMLElement).dataset.action;
+      const button = e.currentTarget as HTMLButtonElement;
       switch (action) {
         case 'clear':
           logger.clear();
@@ -126,6 +142,16 @@ function createOverlayDOM(shadow: ShadowRoot): void {
         case 'close':
           DevLoggerUI.close();
           break;
+        case 'copy-json': {
+          const success = await logger.copyLogs({ format: 'json' });
+          showCopyFeedback(button, success);
+          break;
+        }
+        case 'copy-text': {
+          const success = await logger.copyLogs({ format: 'text' });
+          showCopyFeedback(button, success);
+          break;
+        }
       }
     });
   });
