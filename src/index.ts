@@ -78,6 +78,29 @@ export { DevLoggerUI } from './ui/overlay';
 export type { FilterState } from './ui/filter';
 
 // ============================================================================
+// Error Capture API
+// ============================================================================
+
+/**
+ * Global error capture for uncaught errors and unhandled rejections.
+ *
+ * @example
+ * ```typescript
+ * // Install at app start to auto-capture errors
+ * ErrorCapture.install();
+ *
+ * // Later, uninstall if needed
+ * ErrorCapture.uninstall();
+ * ```
+ */
+export { ErrorCapture } from './core/error-capture';
+
+/**
+ * Configuration type for error capture.
+ */
+export type { ErrorCaptureConfig } from './core/error-capture';
+
+// ============================================================================
 // Package Info
 // ============================================================================
 

@@ -9,6 +9,7 @@ A lightweight, browser-based dev logger with a beautiful debug UI. Zero dependen
 - 🎨 **Debug UI** - Shadow DOM overlay with filter, search, and pop-out window
 - 🚀 **Zero Production Overhead** - Tree-shakeable no-op export for production builds
 - 🔒 **Crash-Resistant** - Never throws, never breaks your app
+- ⚡ **Global Error Capture** - Automatically catch uncaught errors and unhandled rejections
 - 🌐 **Framework-Agnostic** - Works with React, Vue, Svelte, vanilla JS, or any framework
 
 ## Installation
@@ -124,6 +125,36 @@ DevLoggerUI.isInitialized();
 
 Press `Ctrl+Shift+L` to toggle the debug panel.
 
+### ErrorCapture
+
+Automatically capture uncaught errors and unhandled promise rejections:
+
+```typescript
+import { ErrorCapture } from 'devlogger';
+
+// Install at app start
+ErrorCapture.install();
+
+// With custom configuration
+ErrorCapture.install({
+  captureErrors: true,       // Capture window.onerror (default: true)
+  captureRejections: true,   // Capture unhandledrejection (default: true)
+  errorPrefix: '[ERROR]',    // Prefix for error messages
+  rejectionPrefix: '[REJECT]' // Prefix for rejection messages
+});
+
+// Check if active
+ErrorCapture.isActive();
+
+// Get current config
+ErrorCapture.getConfig();
+
+// Uninstall and restore original handlers
+ErrorCapture.uninstall();
+```
+
+All captured errors are automatically logged as `error` level with full stack traces.
+
 ## Production Build
 
 For production, import from `devlogger/noop` to completely eliminate logging code via tree-shaking:
@@ -176,7 +207,7 @@ The `noop` export provides the same API but all functions are no-ops, resulting 
 ## Types
 
 ```typescript
-import type { LogEvent, LogLevel, LoggerConfig, Source, FilterState } from 'devlogger';
+import type { LogEvent, LogLevel, LoggerConfig, Source, FilterState, ErrorCaptureConfig } from 'devlogger';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -208,6 +239,13 @@ interface FilterState {
   levels: Set<LogLevel>;
   search: string;
   file: string;
+}
+
+interface ErrorCaptureConfig {
+  captureErrors?: boolean;
+  captureRejections?: boolean;
+  errorPrefix?: string;
+  rejectionPrefix?: string;
 }
 ```
 

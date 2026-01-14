@@ -50,8 +50,21 @@ export const DevLoggerUI = {
   isInitialized: () => false,
 };
 
+export const ErrorCapture = {
+  install: noop,
+  uninstall: noop,
+  isActive: () => false,
+  getConfig: () => ({
+    captureErrors: false,
+    captureRejections: false,
+    errorPrefix: '[Uncaught Error]',
+    rejectionPrefix: '[Unhandled Rejection]',
+  }),
+};
+
 export const VERSION = '0.1.0';
 
 // Types are still exported for type-checking
 export type { LogEvent, LogLevel, LoggerConfig, Source, LogSubscriber, Unsubscribe } from './core/types';
 export type { FilterState } from './ui/filter';
+export type { ErrorCaptureConfig } from './core/error-capture';
