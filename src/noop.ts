@@ -40,6 +40,8 @@ export const DevLoggerUI = {
   close: noop,
   toggle: noop,
   popout: noop,
+  closePopout: noop,
+  isPopoutOpen: () => false,
   destroy: noop,
   isVisible: () => false,
   isInitialized: () => false,

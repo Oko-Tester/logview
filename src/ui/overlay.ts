@@ -1,5 +1,5 @@
 /**
- * Debug UI Overlay - Phase 4 Implementation
+ * Debug UI Overlay - Phase 4 & 5 Implementation
  *
  * Shadow DOM based overlay that displays logs in real-time.
  * Features:
@@ -8,12 +8,15 @@
  * - Auto-scroll for new logs
  * - Level-coded log entries
  * - Expandable data
+ * - Pop-out window with BroadcastChannel sync
  */
 
 import { logger } from '../core/logger';
 import type { LogEvent, Unsubscribe } from '../core/types';
 import { STYLES } from './styles';
 import { createLogEntry, createEmptyState } from './log-entry';
+import { channel, type ChannelMessage } from '../channel/broadcast';
+import { openPopout, closePopout, isPopoutOpen } from './popout';
 
 /** Keyboard shortcut for toggle */
 const SHORTCUT = { key: 'l', ctrlKey: true, shiftKey: true };
@@ -29,6 +32,7 @@ interface UIState {
   toggleBtn: HTMLElement | null;
   badge: HTMLElement | null;
   unsubscribe: Unsubscribe | null;
+  channelUnsubscribe: (() => void) | null;
 }
 
 const state: UIState = {
@@ -41,6 +45,7 @@ const state: UIState = {
   toggleBtn: null,
   badge: null,
   unsubscribe: null,
+  channelUnsubscribe: null,
 };
 
 /**
@@ -75,7 +80,7 @@ function createOverlayDOM(shadow: ShadowRoot): void {
       </div>
       <div class="devlogger-actions">
         <button class="devlogger-btn" data-action="clear" title="Clear logs">Clear</button>
-        <button class="devlogger-btn" data-action="popout" title="Open in new window">Pop-out</button>
+        <button class="devlogger-btn devlogger-btn-primary" data-action="popout" title="Open in new window">Pop-out</button>
         <button class="devlogger-btn" data-action="close" title="Close (Ctrl+Shift+L)">✕</button>
       </div>
     </div>
@@ -97,6 +102,7 @@ function createOverlayDOM(shadow: ShadowRoot): void {
       switch (action) {
         case 'clear':
           logger.clear();
+          channel.sendClear(); // Notify pop-out
           renderLogs();
           break;
         case 'popout':
@@ -195,6 +201,21 @@ function handleKeydown(e: KeyboardEvent): void {
 }
 
 /**
+ * Handle messages from pop-out window
+ */
+function handleChannelMessage(message: ChannelMessage): void {
+  switch (message.type) {
+    case 'CLEAR_LOGS':
+      logger.clear();
+      renderLogs();
+      break;
+    case 'SYNC_REQUEST':
+      channel.sendSyncResponse(logger.getLogs());
+      break;
+  }
+}
+
+/**
  * DevLogger UI Public API
  */
 export const DevLoggerUI = {
@@ -229,7 +250,12 @@ export const DevLoggerUI = {
       // Subscribe to new logs
       state.unsubscribe = logger.subscribe((log) => {
         addLogEntry(log);
+        // Broadcast to pop-out
+        channel.sendLog(log);
       });
+
+      // Set up channel message handling
+      state.channelUnsubscribe = channel.subscribe(handleChannelMessage);
 
       // Register keyboard shortcut
       document.addEventListener('keydown', handleKeydown);
@@ -287,11 +313,35 @@ export const DevLoggerUI = {
 
   /**
    * Open logs in a separate window
-   * (Placeholder - will be implemented in Phase 5)
    */
   popout(): void {
-    // TODO: Implement in Phase 5
-    console.log('[DevLogger] Pop-out will be implemented in Phase 5');
+    try {
+      if (!state.initialized) {
+        this.init();
+      }
+
+      const win = openPopout();
+      if (win) {
+        // Optionally close the overlay when pop-out opens
+        // this.close();
+      }
+    } catch (e) {
+      console.warn('[DevLogger] Failed to open pop-out:', e);
+    }
+  },
+
+  /**
+   * Close the pop-out window
+   */
+  closePopout(): void {
+    closePopout();
+  },
+
+  /**
+   * Check if pop-out window is open
+   */
+  isPopoutOpen(): boolean {
+    return isPopoutOpen();
   },
 
   /**
@@ -299,10 +349,19 @@ export const DevLoggerUI = {
    */
   destroy(): void {
     try {
+      // Close pop-out if open
+      closePopout();
+
       // Unsubscribe from logger
       if (state.unsubscribe) {
         state.unsubscribe();
         state.unsubscribe = null;
+      }
+
+      // Unsubscribe from channel
+      if (state.channelUnsubscribe) {
+        state.channelUnsubscribe();
+        state.channelUnsubscribe = null;
       }
 
       // Remove keyboard listener
