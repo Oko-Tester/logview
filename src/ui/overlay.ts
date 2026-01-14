@@ -1,5 +1,5 @@
 /**
- * Debug UI Overlay - Phase 4 & 5 Implementation
+ * Debug UI Overlay - Phase 4, 5, 6 Implementation
  *
  * Shadow DOM based overlay that displays logs in real-time.
  * Features:
@@ -9,14 +9,22 @@
  * - Level-coded log entries
  * - Expandable data
  * - Pop-out window with BroadcastChannel sync
+ * - Filter & Search (Level, Text, File)
  */
 
 import { logger } from '../core/logger';
-import type { LogEvent, Unsubscribe } from '../core/types';
+import type { LogEvent, LogLevel, Unsubscribe } from '../core/types';
 import { STYLES } from './styles';
 import { createLogEntry, createEmptyState } from './log-entry';
 import { channel, type ChannelMessage } from '../channel/broadcast';
 import { openPopout, closePopout, isPopoutOpen } from './popout';
+import {
+  type FilterState,
+  createDefaultFilterState,
+  filterLogs,
+  isFilterActive,
+  createFilterBarHtml,
+} from './filter';
 
 /** Keyboard shortcut for toggle */
 const SHORTCUT = { key: 'l', ctrlKey: true, shiftKey: true };
@@ -29,10 +37,12 @@ interface UIState {
   shadow: ShadowRoot | null;
   container: HTMLElement | null;
   logsList: HTMLElement | null;
+  filterBar: HTMLElement | null;
   toggleBtn: HTMLElement | null;
   badge: HTMLElement | null;
   unsubscribe: Unsubscribe | null;
   channelUnsubscribe: (() => void) | null;
+  filter: FilterState;
 }
 
 const state: UIState = {
@@ -42,10 +52,12 @@ const state: UIState = {
   shadow: null,
   container: null,
   logsList: null,
+  filterBar: null,
   toggleBtn: null,
   badge: null,
   unsubscribe: null,
   channelUnsubscribe: null,
+  filter: createDefaultFilterState(),
 };
 
 /**
@@ -70,13 +82,14 @@ function createOverlayDOM(shadow: ShadowRoot): void {
   const container = document.createElement('div');
   container.className = 'devlogger-container hidden';
 
-  const logCount = logger.getLogs().length;
+  const logs = logger.getLogs();
+  const filteredLogs = filterLogs(logs, state.filter);
 
   container.innerHTML = `
     <div class="devlogger-header">
       <div class="devlogger-title">
         DevLogger
-        <span class="devlogger-badge">${logCount}</span>
+        <span class="devlogger-badge">${filteredLogs.length}</span>
       </div>
       <div class="devlogger-actions">
         <button class="devlogger-btn" data-action="clear" title="Clear logs">Clear</button>
@@ -84,9 +97,10 @@ function createOverlayDOM(shadow: ShadowRoot): void {
         <button class="devlogger-btn" data-action="close" title="Close (Ctrl+Shift+L)">✕</button>
       </div>
     </div>
+    <div class="filter-bar-container"></div>
     <div class="devlogger-logs"></div>
     <div class="devlogger-footer">
-      <span class="devlogger-log-count">${logCount} logs</span>
+      <span class="devlogger-log-count">${logs.length} logs</span>
       <span class="devlogger-shortcut">Ctrl+Shift+L to toggle</span>
     </div>
   `;
@@ -94,6 +108,7 @@ function createOverlayDOM(shadow: ShadowRoot): void {
   // Get references
   state.badge = container.querySelector('.devlogger-badge');
   state.logsList = container.querySelector('.devlogger-logs');
+  state.filterBar = container.querySelector('.filter-bar-container');
 
   // Add button handlers
   container.querySelectorAll('[data-action]').forEach((btn) => {
@@ -102,7 +117,7 @@ function createOverlayDOM(shadow: ShadowRoot): void {
       switch (action) {
         case 'clear':
           logger.clear();
-          channel.sendClear(); // Notify pop-out
+          channel.sendClear();
           renderLogs();
           break;
         case 'popout':
@@ -118,30 +133,108 @@ function createOverlayDOM(shadow: ShadowRoot): void {
   shadow.appendChild(container);
   state.container = container;
 
-  // Render existing logs
+  // Render filter bar and logs
+  renderFilterBar();
   renderLogs();
 }
 
 /**
- * Render all logs to the list
+ * Render the filter bar
+ */
+function renderFilterBar(): void {
+  if (!state.filterBar) return;
+
+  const logs = logger.getLogs();
+  const filteredLogs = filterLogs(logs, state.filter);
+
+  state.filterBar.innerHTML = createFilterBarHtml(state.filter, logs.length, filteredLogs.length);
+
+  // Add event listeners for filter controls
+  setupFilterListeners();
+}
+
+/**
+ * Set up filter event listeners
+ */
+function setupFilterListeners(): void {
+  if (!state.filterBar) return;
+
+  // Level buttons
+  state.filterBar.querySelectorAll('.filter-level-btn').forEach((btn) => {
+    btn.addEventListener('click', (e) => {
+      const level = (e.currentTarget as HTMLElement).dataset.level as LogLevel;
+      if (state.filter.levels.has(level)) {
+        state.filter.levels.delete(level);
+      } else {
+        state.filter.levels.add(level);
+      }
+      renderFilterBar();
+      renderLogs();
+    });
+  });
+
+  // Search input
+  const searchInput = state.filterBar.querySelector('[data-filter="search"]') as HTMLInputElement;
+  if (searchInput) {
+    searchInput.addEventListener('input', (e) => {
+      state.filter.search = (e.target as HTMLInputElement).value;
+      renderFilterBar();
+      renderLogs();
+    });
+  }
+
+  // File input
+  const fileInput = state.filterBar.querySelector('[data-filter="file"]') as HTMLInputElement;
+  if (fileInput) {
+    fileInput.addEventListener('input', (e) => {
+      state.filter.file = (e.target as HTMLInputElement).value;
+      renderFilterBar();
+      renderLogs();
+    });
+  }
+
+  // Clear button
+  const clearBtn = state.filterBar.querySelector('.filter-clear-btn');
+  if (clearBtn) {
+    clearBtn.addEventListener('click', () => {
+      state.filter = createDefaultFilterState();
+      renderFilterBar();
+      renderLogs();
+    });
+  }
+}
+
+/**
+ * Render all logs to the list (with filtering)
  */
 function renderLogs(): void {
   if (!state.logsList) return;
 
   const logs = logger.getLogs();
+  const filteredLogs = filterLogs(logs, state.filter);
+
   state.logsList.innerHTML = '';
 
   if (logs.length === 0) {
     state.logsList.appendChild(createEmptyState());
+  } else if (filteredLogs.length === 0) {
+    // No results after filtering
+    const noResults = document.createElement('div');
+    noResults.className = 'devlogger-no-results';
+    noResults.innerHTML = `
+      <span class="devlogger-no-results-icon">🔍</span>
+      <span class="devlogger-no-results-text">No logs match your filter</span>
+    `;
+    state.logsList.appendChild(noResults);
   } else {
     const fragment = document.createDocumentFragment();
-    for (const log of logs) {
+    for (const log of filteredLogs) {
       fragment.appendChild(createLogEntry(log));
     }
     state.logsList.appendChild(fragment);
   }
 
-  updateBadge(logs.length);
+  updateBadge(filteredLogs.length, logs.length);
   scrollToBottom();
 }
 
@@ -151,29 +244,58 @@ function renderLogs(): void {
 function addLogEntry(log: LogEvent): void {
   if (!state.logsList) return;
 
-  // Remove empty state if present
-  const empty = state.logsList.querySelector('.devlogger-empty');
-  if (empty) {
-    empty.remove();
+  const logs = logger.getLogs();
+  const filteredLogs = filterLogs(logs, state.filter);
+
+  // Check if this log matches the filter
+  const matchesCurrentFilter = filteredLogs.some((l) => l.id === log.id);
+
+  if (matchesCurrentFilter) {
+    // Remove empty state or no-results state if present
+    const empty = state.logsList.querySelector('.devlogger-empty, .devlogger-no-results');
+    if (empty) {
+      empty.remove();
+    }
+
+    state.logsList.appendChild(createLogEntry(log));
   }
 
-  state.logsList.appendChild(createLogEntry(log));
-  updateBadge(logger.getLogs().length);
+  updateBadge(filteredLogs.length, logs.length);
+  updateFilterStatus();
   scrollToBottom();
 }
 
 /**
  * Update the log count badge
  */
-function updateBadge(count: number): void {
+function updateBadge(filteredCount: number, totalCount: number): void {
   if (state.badge) {
-    state.badge.textContent = String(count);
+    state.badge.textContent = String(filteredCount);
   }
 
-  // Update footer count too
+  // Update footer count
   const footerCount = state.container?.querySelector('.devlogger-log-count');
   if (footerCount) {
-    footerCount.textContent = `${count} logs`;
+    if (isFilterActive(state.filter)) {
+      footerCount.textContent = `${filteredCount} of ${totalCount} logs`;
+    } else {
+      footerCount.textContent = `${totalCount} logs`;
+    }
+  }
+}
+
+/**
+ * Update filter status display
+ */
+function updateFilterStatus(): void {
+  if (!state.filterBar) return;
+
+  const logs = logger.getLogs();
+  const filteredLogs = filterLogs(logs, state.filter);
+
+  const statusEl = state.filterBar.querySelector('.filter-status');
+  if (statusEl && isFilterActive(state.filter)) {
+    statusEl.textContent = `Showing ${filteredLogs.length} of ${logs.length} logs`;
   }
 }
 
@@ -221,7 +343,6 @@ function handleChannelMessage(message: ChannelMessage): void {
 export const DevLoggerUI = {
   /**
    * Initialize the overlay UI
-   * Call this once when your app starts
    */
   init(): void {
     try {
@@ -229,40 +350,31 @@ export const DevLoggerUI = {
         return;
       }
 
-      // Check if we're in a browser environment
       if (typeof document === 'undefined') {
         return;
       }
 
-      // Create host element
       const host = document.createElement('div');
       host.id = 'devlogger-host';
       document.body.appendChild(host);
       state.host = host;
 
-      // Create shadow DOM for isolation
       const shadow = host.attachShadow({ mode: 'open' });
       state.shadow = shadow;
 
-      // Create DOM structure
       createOverlayDOM(shadow);
 
-      // Subscribe to new logs
       state.unsubscribe = logger.subscribe((log) => {
         addLogEntry(log);
-        // Broadcast to pop-out
         channel.sendLog(log);
       });
 
-      // Set up channel message handling
       state.channelUnsubscribe = channel.subscribe(handleChannelMessage);
 
-      // Register keyboard shortcut
       document.addEventListener('keydown', handleKeydown);
 
       state.initialized = true;
     } catch (e) {
-      // Silent fail - UI errors should not break the app
       console.warn('[DevLogger UI] Init error:', e);
     }
   },
@@ -319,12 +431,7 @@ export const DevLoggerUI = {
       if (!state.initialized) {
         this.init();
       }
-
-      const win = openPopout();
-      if (win) {
-        // Optionally close the overlay when pop-out opens
-        // this.close();
-      }
+      openPopout();
     } catch (e) {
       console.warn('[DevLogger] Failed to open pop-out:', e);
     }
@@ -345,42 +452,79 @@ export const DevLoggerUI = {
   },
 
   /**
+   * Set filter state
+   */
+  setFilter(filter: Partial<FilterState>): void {
+    try {
+      if (filter.levels !== undefined) {
+        state.filter.levels = filter.levels;
+      }
+      if (filter.search !== undefined) {
+        state.filter.search = filter.search;
+      }
+      if (filter.file !== undefined) {
+        state.filter.file = filter.file;
+      }
+      renderFilterBar();
+      renderLogs();
+    } catch {
+      // Silent fail
+    }
+  },
+
+  /**
+   * Get current filter state
+   */
+  getFilter(): FilterState {
+    return { ...state.filter, levels: new Set(state.filter.levels) };
+  },
+
+  /**
+   * Clear all filters
+   */
+  clearFilter(): void {
+    try {
+      state.filter = createDefaultFilterState();
+      renderFilterBar();
+      renderLogs();
+    } catch {
+      // Silent fail
+    }
+  },
+
+  /**
    * Destroy the UI and clean up
    */
   destroy(): void {
     try {
-      // Close pop-out if open
       closePopout();
 
-      // Unsubscribe from logger
       if (state.unsubscribe) {
         state.unsubscribe();
         state.unsubscribe = null;
       }
 
-      // Unsubscribe from channel
       if (state.channelUnsubscribe) {
         state.channelUnsubscribe();
         state.channelUnsubscribe = null;
       }
 
-      // Remove keyboard listener
       document.removeEventListener('keydown', handleKeydown);
 
-      // Remove DOM elements
       if (state.host) {
         state.host.remove();
         state.host = null;
       }
 
-      // Reset state
       state.initialized = false;
       state.visible = false;
       state.shadow = null;
       state.container = null;
       state.logsList = null;
+      state.filterBar = null;
       state.toggleBtn = null;
       state.badge = null;
+      state.filter = createDefaultFilterState();
     } catch {
       // Silent fail
     }

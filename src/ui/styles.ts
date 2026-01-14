@@ -332,4 +332,142 @@ export const STYLES = `
   .devlogger-shortcut {
     opacity: 0.7;
   }
+
+  /* Filter Bar */
+  .filter-bar {
+    padding: 8px 12px;
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .filter-bar.filter-active {
+    background: rgba(55, 148, 255, 0.08);
+    border-bottom-color: ${COLORS.levelInfo};
+  }
+
+  .filter-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .filter-levels {
+    display: flex;
+    gap: 2px;
+  }
+
+  .filter-level-btn {
+    width: 24px;
+    height: 24px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--text-muted);
+    cursor: pointer;
+    font-size: 10px;
+    font-weight: 600;
+    transition: all 0.15s ease;
+  }
+
+  .filter-level-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .filter-level-btn.active {
+    color: white;
+  }
+
+  .filter-level-btn.active[data-level="debug"] {
+    background: ${COLORS.levelDebug};
+    border-color: ${COLORS.levelDebug};
+  }
+
+  .filter-level-btn.active[data-level="info"] {
+    background: ${COLORS.levelInfo};
+    border-color: ${COLORS.levelInfo};
+  }
+
+  .filter-level-btn.active[data-level="warn"] {
+    background: ${COLORS.levelWarn};
+    border-color: ${COLORS.levelWarn};
+  }
+
+  .filter-level-btn.active[data-level="error"] {
+    background: ${COLORS.levelError};
+    border-color: ${COLORS.levelError};
+  }
+
+  .filter-search {
+    flex: 1;
+  }
+
+  .filter-file {
+    width: 120px;
+  }
+
+  .filter-input {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    font-size: 11px;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.15s ease;
+  }
+
+  .filter-input::placeholder {
+    color: var(--text-muted);
+  }
+
+  .filter-input:focus {
+    border-color: ${COLORS.levelInfo};
+  }
+
+  .filter-clear-btn {
+    width: 24px;
+    height: 24px;
+    border: none;
+    border-radius: 4px;
+    background: rgba(241, 76, 76, 0.2);
+    color: ${COLORS.levelError};
+    cursor: pointer;
+    font-size: 12px;
+    transition: all 0.15s ease;
+  }
+
+  .filter-clear-btn:hover {
+    background: ${COLORS.levelError};
+    color: white;
+  }
+
+  .filter-status {
+    margin-top: 6px;
+    font-size: 10px;
+    color: ${COLORS.levelInfo};
+  }
+
+  /* No results state */
+  .devlogger-no-results {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    gap: 8px;
+  }
+
+  .devlogger-no-results-icon {
+    font-size: 24px;
+    opacity: 0.5;
+  }
+
+  .devlogger-no-results-text {
+    font-style: italic;
+  }
 `;
