@@ -123,11 +123,21 @@
   </div>
 
   <script type="module">
-    import { logger, DevLoggerUI } from '../dist/index.js';
+    import { logger, DevLoggerUI, ErrorCapture, LogPersistence } from '../src/index.ts';
 
     // Make available globally for onclick handlers
     window.logger = logger;
     window.DevLoggerUI = DevLoggerUI;
+
+    // Enable persistence and error capture
+    LogPersistence.enable();
+    ErrorCapture.install();
+
+    // Rehydrate logs from previous session
+    const restored = LogPersistence.rehydrate();
+    if (LogPersistence.hadCrash()) {
+      logger.warn(`Recovered ${restored} logs from previous crash`);
+    }
 
     // Initialize UI
     DevLoggerUI.init();
