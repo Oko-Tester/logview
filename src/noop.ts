@@ -30,6 +30,8 @@ export const logger = {
   clear: noop,
   getLogs: () => [] as const,
   subscribe: () => noop,
+  getSessionId: () => '',
+  getConfig: () => ({ maxLogs: 1000, persist: false, minLevel: 'debug' as const, enabled: false }),
 };
 
 export const DevLoggerUI = {
