@@ -41,6 +41,8 @@ export const DevLoggerUI = {
   toggle: noop,
   popout: noop,
   destroy: noop,
+  isVisible: () => false,
+  isInitialized: () => false,
 };
 
 export const VERSION = '0.1.0';

@@ -1,0 +1,335 @@
+/**
+ * UI Styles for DevLogger
+ *
+ * CSS-in-JS for Shadow DOM isolation.
+ * Design philosophy: Clean, readable, non-intrusive.
+ */
+
+export const COLORS = {
+  // Background
+  bgPrimary: '#1e1e1e',
+  bgSecondary: '#252526',
+  bgHover: '#2a2a2a',
+  bgHeader: '#333333',
+
+  // Text
+  textPrimary: '#cccccc',
+  textSecondary: '#858585',
+  textMuted: '#6e6e6e',
+
+  // Log Levels
+  levelDebug: '#6e6e6e',
+  levelInfo: '#3794ff',
+  levelWarn: '#cca700',
+  levelError: '#f14c4c',
+
+  // Accents
+  border: '#3c3c3c',
+  scrollbar: '#4a4a4a',
+  scrollbarHover: '#5a5a5a',
+
+  // Interactive
+  buttonBg: '#0e639c',
+  buttonHover: '#1177bb',
+} as const;
+
+export const STYLES = `
+  :host {
+    --bg-primary: ${COLORS.bgPrimary};
+    --bg-secondary: ${COLORS.bgSecondary};
+    --bg-hover: ${COLORS.bgHover};
+    --bg-header: ${COLORS.bgHeader};
+    --text-primary: ${COLORS.textPrimary};
+    --text-secondary: ${COLORS.textSecondary};
+    --text-muted: ${COLORS.textMuted};
+    --border: ${COLORS.border};
+
+    all: initial;
+    font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+    font-size: 12px;
+    line-height: 1.4;
+    color: var(--text-primary);
+  }
+
+  * {
+    box-sizing: border-box;
+  }
+
+  /* Container */
+  .devlogger-container {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 420px;
+    height: 100vh;
+    background: var(--bg-primary);
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    z-index: 99999;
+    box-shadow: -2px 0 8px rgba(0, 0, 0, 0.3);
+  }
+
+  .devlogger-container.hidden {
+    display: none;
+  }
+
+  /* Header */
+  .devlogger-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    background: var(--bg-header);
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+
+  .devlogger-title {
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .devlogger-badge {
+    background: ${COLORS.levelInfo};
+    color: white;
+    padding: 2px 6px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 500;
+  }
+
+  .devlogger-actions {
+    display: flex;
+    gap: 4px;
+  }
+
+  .devlogger-btn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    transition: all 0.15s ease;
+  }
+
+  .devlogger-btn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  .devlogger-btn-primary {
+    background: ${COLORS.buttonBg};
+    color: white;
+  }
+
+  .devlogger-btn-primary:hover {
+    background: ${COLORS.buttonHover};
+    color: white;
+  }
+
+  /* Log List */
+  .devlogger-logs {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+
+  .devlogger-logs::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .devlogger-logs::-webkit-scrollbar-track {
+    background: var(--bg-primary);
+  }
+
+  .devlogger-logs::-webkit-scrollbar-thumb {
+    background: ${COLORS.scrollbar};
+    border-radius: 4px;
+  }
+
+  .devlogger-logs::-webkit-scrollbar-thumb:hover {
+    background: ${COLORS.scrollbarHover};
+  }
+
+  .devlogger-empty {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    color: var(--text-muted);
+    font-style: italic;
+  }
+
+  /* Log Entry */
+  .log-entry {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    transition: background 0.1s ease;
+  }
+
+  .log-entry:hover {
+    background: var(--bg-hover);
+  }
+
+  .log-entry-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+
+  .log-level {
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border-radius: 3px;
+    min-width: 45px;
+    text-align: center;
+  }
+
+  .log-level-debug {
+    background: rgba(110, 110, 110, 0.2);
+    color: ${COLORS.levelDebug};
+  }
+
+  .log-level-info {
+    background: rgba(55, 148, 255, 0.15);
+    color: ${COLORS.levelInfo};
+  }
+
+  .log-level-warn {
+    background: rgba(204, 167, 0, 0.15);
+    color: ${COLORS.levelWarn};
+  }
+
+  .log-level-error {
+    background: rgba(241, 76, 76, 0.15);
+    color: ${COLORS.levelError};
+  }
+
+  .log-time {
+    color: var(--text-muted);
+    font-size: 11px;
+  }
+
+  .log-source {
+    color: var(--text-secondary);
+    font-size: 11px;
+    margin-left: auto;
+    max-width: 150px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .log-source:hover {
+    color: ${COLORS.levelInfo};
+  }
+
+  .log-message {
+    color: var(--text-primary);
+    word-break: break-word;
+    margin-bottom: 4px;
+  }
+
+  /* Data Display */
+  .log-data {
+    margin-top: 6px;
+  }
+
+  .log-data-toggle {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary);
+    cursor: pointer;
+    padding: 2px 0;
+    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .log-data-toggle:hover {
+    color: var(--text-primary);
+  }
+
+  .log-data-toggle::before {
+    content: '▶';
+    font-size: 8px;
+    transition: transform 0.15s ease;
+  }
+
+  .log-data-toggle.expanded::before {
+    transform: rotate(90deg);
+  }
+
+  .log-data-content {
+    display: none;
+    margin-top: 6px;
+    padding: 8px;
+    background: var(--bg-secondary);
+    border-radius: 4px;
+    font-size: 11px;
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+
+  .log-data-content.visible {
+    display: block;
+  }
+
+  /* Toggle Button (floating) */
+  .devlogger-toggle {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: ${COLORS.buttonBg};
+    color: white;
+    border: none;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    font-size: 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    z-index: 99998;
+  }
+
+  .devlogger-toggle:hover {
+    background: ${COLORS.buttonHover};
+    transform: scale(1.05);
+  }
+
+  .devlogger-toggle.hidden {
+    display: none;
+  }
+
+  /* Footer / Status */
+  .devlogger-footer {
+    padding: 6px 12px;
+    background: var(--bg-header);
+    border-top: 1px solid var(--border);
+    font-size: 11px;
+    color: var(--text-muted);
+    display: flex;
+    justify-content: space-between;
+    flex-shrink: 0;
+  }
+
+  .devlogger-shortcut {
+    opacity: 0.7;
+  }
+`;

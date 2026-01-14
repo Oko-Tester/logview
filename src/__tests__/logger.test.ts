@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { logger } from '../core/logger';
-import type { LogEvent } from '../core/types';
 
 describe('LoggerCore', () => {
   beforeEach(() => {
