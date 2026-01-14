@@ -53,4 +53,5 @@ export const DevLoggerUI = {
 export const VERSION = '0.1.0';
 
 // Types are still exported for type-checking
-export type { LogEvent, LogLevel, LoggerConfig, Source } from './core/types';
+export type { LogEvent, LogLevel, LoggerConfig, Source, LogSubscriber, Unsubscribe } from './core/types';
+export type { FilterState } from './ui/filter';
