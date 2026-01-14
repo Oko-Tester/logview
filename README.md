@@ -61,7 +61,6 @@ logger.configure({
   maxLogs: 1000,      // Max logs in memory (FIFO rotation)
   minLevel: 'debug',  // Minimum level: 'debug' | 'info' | 'warn' | 'error'
   enabled: true,      // Enable/disable logging
-  persist: false,     // Reserved for future persistence feature
 });
 ```
 
@@ -269,7 +268,6 @@ interface LogEvent {
 
 interface LoggerConfig {
   maxLogs?: number;
-  persist?: boolean;
   minLevel?: LogLevel;
   enabled?: boolean;
 }
