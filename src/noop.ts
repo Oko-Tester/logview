@@ -28,6 +28,7 @@ export const logger = {
   debug: noop,
   configure: noop,
   clear: noop,
+  importLogs: noop,
   getLogs: () => [] as const,
   subscribe: () => noop,
   getSessionId: () => '',
@@ -62,9 +63,25 @@ export const ErrorCapture = {
   }),
 };
 
+export const LogPersistence = {
+  enable: noop,
+  disable: noop,
+  isActive: () => false,
+  hadCrash: () => false,
+  getPersistedLogs: () => [] as const,
+  rehydrate: () => 0,
+  clear: noop,
+  getConfig: () => ({
+    storage: 'session' as const,
+    maxPersisted: 500,
+    debounceMs: 100,
+  }),
+};
+
 export const VERSION = '0.1.0';
 
 // Types are still exported for type-checking
 export type { LogEvent, LogLevel, LoggerConfig, Source, LogSubscriber, Unsubscribe } from './core/types';
 export type { FilterState } from './ui/filter';
 export type { ErrorCaptureConfig } from './core/error-capture';
+export type { PersistenceConfig } from './core/persistence';

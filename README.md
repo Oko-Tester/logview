@@ -10,6 +10,7 @@ A lightweight, browser-based dev logger with a beautiful debug UI. Zero dependen
 - 🚀 **Zero Production Overhead** - Tree-shakeable no-op export for production builds
 - 🔒 **Crash-Resistant** - Never throws, never breaks your app
 - ⚡ **Global Error Capture** - Automatically catch uncaught errors and unhandled rejections
+- 💾 **Persistence & Crash Recovery** - Survive page crashes with automatic log persistence
 - 🌐 **Framework-Agnostic** - Works with React, Vue, Svelte, vanilla JS, or any framework
 
 ## Installation
@@ -155,6 +156,44 @@ ErrorCapture.uninstall();
 
 All captured errors are automatically logged as `error` level with full stack traces.
 
+### LogPersistence
+
+Persist logs to survive page crashes and enable crash recovery:
+
+```typescript
+import { LogPersistence, logger } from 'devlogger';
+
+// Enable persistence at app start
+LogPersistence.enable();
+
+// Rehydrate logs from previous session
+const count = LogPersistence.rehydrate();
+if (LogPersistence.hadCrash()) {
+  logger.warn(`Recovered ${count} logs from previous crash`);
+}
+
+// With custom configuration
+LogPersistence.enable({
+  storage: 'session',    // 'session' (sessionStorage) or 'local' (localStorage)
+  maxPersisted: 500,     // Max logs to persist
+  debounceMs: 100        // Debounce writes for performance
+});
+
+// Check if active
+LogPersistence.isActive();
+
+// Get persisted logs without importing
+const logs = LogPersistence.getPersistedLogs();
+
+// Clear persisted logs
+LogPersistence.clear();
+
+// Disable persistence
+LogPersistence.disable();
+```
+
+Logs are persisted automatically after each new log (debounced). On page unload, logs are saved synchronously to ensure no data loss.
+
 ## Production Build
 
 For production, import from `devlogger/noop` to completely eliminate logging code via tree-shaking:
@@ -246,6 +285,12 @@ interface ErrorCaptureConfig {
   captureRejections?: boolean;
   errorPrefix?: string;
   rejectionPrefix?: string;
+}
+
+interface PersistenceConfig {
+  storage?: 'session' | 'local';
+  maxPersisted?: number;
+  debounceMs?: number;
 }
 ```
 

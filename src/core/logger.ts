@@ -331,6 +331,32 @@ class LoggerCore {
   }
 
   /**
+   * Import logs (used for rehydration from persistence)
+   * Imported logs are added at the beginning, preserving order
+   */
+  importLogs(logs: LogEvent[]): void {
+    try {
+      if (!Array.isArray(logs) || logs.length === 0) {
+        return;
+      }
+
+      // Filter out logs that already exist (by id)
+      const existingIds = new Set(this.logs.map((l) => l.id));
+      const newLogs = logs.filter((l) => !existingIds.has(l.id));
+
+      // Prepend imported logs
+      this.logs = [...newLogs, ...this.logs];
+
+      // Apply rotation
+      while (this.logs.length > this.config.maxLogs) {
+        this.logs.shift();
+      }
+    } catch {
+      // Silent fail
+    }
+  }
+
+  /**
    * Get all stored logs (readonly)
    */
   getLogs(): readonly LogEvent[] {

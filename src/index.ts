@@ -101,6 +101,32 @@ export { ErrorCapture } from './core/error-capture';
 export type { ErrorCaptureConfig } from './core/error-capture';
 
 // ============================================================================
+// Persistence API
+// ============================================================================
+
+/**
+ * Log persistence for crash recovery.
+ *
+ * @example
+ * ```typescript
+ * // Enable persistence at app start
+ * LogPersistence.enable();
+ *
+ * // Rehydrate logs from previous session
+ * const count = LogPersistence.rehydrate();
+ * if (LogPersistence.hadCrash()) {
+ *   logger.warn(`Recovered ${count} logs from crash`);
+ * }
+ * ```
+ */
+export { LogPersistence } from './core/persistence';
+
+/**
+ * Configuration type for log persistence.
+ */
+export type { PersistenceConfig } from './core/persistence';
+
+// ============================================================================
 // Package Info
 // ============================================================================
 
