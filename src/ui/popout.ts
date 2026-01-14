@@ -223,6 +223,103 @@ function generatePopoutHtml(): string {
       color: var(--text-primary);
     }
 
+    /* Filter Bar Styles */
+    .filter-bar {
+      padding: 8px 16px;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+    }
+
+    .filter-bar.filter-active {
+      border-bottom-color: var(--level-info);
+    }
+
+    .filter-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .filter-levels {
+      display: flex;
+      gap: 4px;
+    }
+
+    .filter-level-btn {
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 600;
+      transition: all 0.15s ease;
+    }
+
+    .filter-level-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .filter-level-btn.active {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+      border-color: var(--text-secondary);
+    }
+
+    .filter-level-btn[data-level="debug"].active { border-color: var(--level-debug); color: var(--level-debug); }
+    .filter-level-btn[data-level="info"].active { border-color: var(--level-info); color: var(--level-info); }
+    .filter-level-btn[data-level="warn"].active { border-color: var(--level-warn); color: var(--level-warn); }
+    .filter-level-btn[data-level="error"].active { border-color: var(--level-error); color: var(--level-error); }
+
+    .filter-input {
+      flex: 1;
+      min-width: 80px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-size: 12px;
+      font-family: inherit;
+    }
+
+    .filter-input:focus {
+      outline: none;
+      border-color: var(--level-info);
+    }
+
+    .filter-input::placeholder {
+      color: var(--text-muted);
+    }
+
+    .filter-clear-btn {
+      width: 24px;
+      height: 24px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: transparent;
+      color: var(--text-muted);
+      cursor: pointer;
+      font-size: 14px;
+      line-height: 1;
+      transition: all 0.15s ease;
+    }
+
+    .filter-clear-btn:hover {
+      background: var(--level-error);
+      border-color: var(--level-error);
+      color: white;
+    }
+
+    .filter-status {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 6px;
+    }
+
     .logs {
       flex: 1;
       overflow-y: auto;
@@ -370,6 +467,20 @@ function generatePopoutHtml(): string {
     </div>
   </div>
 
+  <div class="filter-bar" id="filter-bar">
+    <div class="filter-row">
+      <div class="filter-levels">
+        <button class="filter-level-btn active" data-level="debug" title="Debug">D</button>
+        <button class="filter-level-btn active" data-level="info" title="Info">I</button>
+        <button class="filter-level-btn active" data-level="warn" title="Warning">W</button>
+        <button class="filter-level-btn active" data-level="error" title="Error">E</button>
+      </div>
+      <input type="text" class="filter-input" id="filter-search" placeholder="Search logs..." data-filter="search">
+      <input type="text" class="filter-input" id="filter-file" placeholder="Filter by file..." data-filter="file" style="max-width: 120px;">
+    </div>
+    <div class="filter-status" id="filter-status" style="display: none;"></div>
+  </div>
+
   <div class="logs" id="logs">
     <div class="empty">Waiting for logs...</div>
   </div>
@@ -386,6 +497,13 @@ function generatePopoutHtml(): string {
     let channel = null;
     let isConnected = false;
 
+    // Filter state
+    const filter = {
+      levels: new Set(['debug', 'info', 'warn', 'error']),
+      search: '',
+      file: ''
+    };
+
     // DOM elements
     const logsContainer = document.getElementById('logs');
     const logCountBadge = document.getElementById('log-count');
@@ -393,6 +511,10 @@ function generatePopoutHtml(): string {
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
     const btnClear = document.getElementById('btn-clear');
+    const filterBar = document.getElementById('filter-bar');
+    const filterSearch = document.getElementById('filter-search');
+    const filterFile = document.getElementById('filter-file');
+    const filterStatus = document.getElementById('filter-status');
 
     // Connect to broadcast channel
     function connect() {
@@ -434,9 +556,16 @@ function generatePopoutHtml(): string {
     // Add a single log
     function addLog(log) {
       logs.push(log);
-      renderLog(log);
+      // Only render if log matches current filter
+      if (matchesFilter(log)) {
+        // Remove empty state if present
+        const empty = logsContainer.querySelector('.empty');
+        if (empty) empty.remove();
+        renderLog(log);
+        scrollToBottom();
+      }
       updateCounts();
-      scrollToBottom();
+      updateFilterUI();
     }
 
     // Sync all logs
@@ -453,16 +582,84 @@ function generatePopoutHtml(): string {
       updateCounts();
     }
 
+    // Check if a log matches the current filter
+    function matchesFilter(log) {
+      // Level filter
+      if (filter.levels.size > 0 && !filter.levels.has(log.level)) {
+        return false;
+      }
+
+      // File filter
+      if (filter.file && !log.source.file.toLowerCase().includes(filter.file.toLowerCase())) {
+        return false;
+      }
+
+      // Text search
+      if (filter.search) {
+        const searchLower = filter.search.toLowerCase();
+        const messageMatch = log.message.toLowerCase().includes(searchLower);
+        const dataMatch = JSON.stringify(log.data).toLowerCase().includes(searchLower);
+        if (!messageMatch && !dataMatch) {
+          return false;
+        }
+      }
+
+      return true;
+    }
+
+    // Get filtered logs
+    function getFilteredLogs() {
+      return logs.filter(log => matchesFilter(log));
+    }
+
+    // Check if any filter is active
+    function isFilterActive() {
+      return filter.levels.size !== 4 || filter.search !== '' || filter.file !== '';
+    }
+
+    // Update filter UI
+    function updateFilterUI() {
+      const active = isFilterActive();
+      const filteredLogs = getFilteredLogs();
+
+      filterBar.classList.toggle('filter-active', active);
+
+      if (active) {
+        filterStatus.style.display = 'block';
+        filterStatus.textContent = 'Showing ' + filteredLogs.length + ' of ' + logs.length + ' logs';
+      } else {
+        filterStatus.style.display = 'none';
+      }
+
+      // Update counts
+      logCountBadge.textContent = filteredLogs.length;
+      if (active) {
+        footerCount.textContent = filteredLogs.length + ' of ' + logs.length + ' logs';
+      } else {
+        footerCount.textContent = logs.length + ' logs';
+      }
+    }
+
     // Render all logs
     function renderAllLogs() {
+      const filteredLogs = getFilteredLogs();
+
       if (logs.length === 0) {
         logsContainer.innerHTML = '<div class="empty">No logs yet...</div>';
+        updateFilterUI();
+        return;
+      }
+
+      if (filteredLogs.length === 0) {
+        logsContainer.innerHTML = '<div class="empty">No logs match your filter</div>';
+        updateFilterUI();
         return;
       }
 
       logsContainer.innerHTML = '';
-      logs.forEach(log => renderLog(log));
+      filteredLogs.forEach(log => renderLog(log));
       scrollToBottom();
+      updateFilterUI();
     }
 
     // Render a single log entry
@@ -585,6 +782,33 @@ function generatePopoutHtml(): string {
         }
       }
     }, 5000);
+
+    // Filter: Level buttons
+    document.querySelectorAll('.filter-level-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const level = e.currentTarget.dataset.level;
+        if (filter.levels.has(level)) {
+          filter.levels.delete(level);
+          e.currentTarget.classList.remove('active');
+        } else {
+          filter.levels.add(level);
+          e.currentTarget.classList.add('active');
+        }
+        renderAllLogs();
+      });
+    });
+
+    // Filter: Search input
+    filterSearch.addEventListener('input', (e) => {
+      filter.search = e.target.value;
+      renderAllLogs();
+    });
+
+    // Filter: File input
+    filterFile.addEventListener('input', (e) => {
+      filter.file = e.target.value;
+      renderAllLogs();
+    });
 
     // Initialize
     connect();

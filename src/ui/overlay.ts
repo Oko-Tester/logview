@@ -173,22 +173,22 @@ function setupFilterListeners(): void {
     });
   });
 
-  // Search input
+  // Search input - don't re-render the filter bar to keep focus
   const searchInput = state.filterBar.querySelector('[data-filter="search"]') as HTMLInputElement;
   if (searchInput) {
     searchInput.addEventListener('input', (e) => {
       state.filter.search = (e.target as HTMLInputElement).value;
-      renderFilterBar();
+      updateFilterStatus();
       renderLogs();
     });
   }
 
-  // File input
+  // File input - don't re-render the filter bar to keep focus
   const fileInput = state.filterBar.querySelector('[data-filter="file"]') as HTMLInputElement;
   if (fileInput) {
     fileInput.addEventListener('input', (e) => {
       state.filter.file = (e.target as HTMLInputElement).value;
-      renderFilterBar();
+      updateFilterStatus();
       renderLogs();
     });
   }
@@ -285,17 +285,50 @@ function updateBadge(filteredCount: number, totalCount: number): void {
 }
 
 /**
- * Update filter status display
+ * Update filter status display (without re-rendering inputs)
  */
 function updateFilterStatus(): void {
   if (!state.filterBar) return;
 
   const logs = logger.getLogs();
   const filteredLogs = filterLogs(logs, state.filter);
+  const active = isFilterActive(state.filter);
 
-  const statusEl = state.filterBar.querySelector('.filter-status');
-  if (statusEl && isFilterActive(state.filter)) {
+  // Update filter-active class on the filter-bar
+  const filterBar = state.filterBar.querySelector('.filter-bar');
+  if (filterBar) {
+    filterBar.classList.toggle('filter-active', active);
+  }
+
+  // Update or create status element
+  let statusEl = state.filterBar.querySelector('.filter-status');
+  if (active) {
+    if (!statusEl) {
+      statusEl = document.createElement('div');
+      statusEl.className = 'filter-status';
+      filterBar?.appendChild(statusEl);
+    }
     statusEl.textContent = `Showing ${filteredLogs.length} of ${logs.length} logs`;
+
+    // Add clear button if not present
+    let clearBtn = state.filterBar.querySelector('.filter-clear-btn');
+    if (!clearBtn) {
+      clearBtn = document.createElement('button');
+      clearBtn.className = 'filter-clear-btn';
+      clearBtn.setAttribute('title', 'Clear filters');
+      clearBtn.textContent = '✕';
+      clearBtn.addEventListener('click', () => {
+        state.filter = createDefaultFilterState();
+        renderFilterBar();
+        renderLogs();
+      });
+      const filterRow = state.filterBar.querySelector('.filter-row');
+      filterRow?.appendChild(clearBtn);
+    }
+  } else {
+    // Remove status and clear button when filter is inactive
+    statusEl?.remove();
+    state.filterBar.querySelector('.filter-clear-btn')?.remove();
   }
 }
 
