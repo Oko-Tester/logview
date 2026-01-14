@@ -1,0 +1,69 @@
+{
+  "name": "devlogger",
+  "version": "0.1.0",
+  "description": "Lightweight browser dev-logger with UI overlay and pop-out window. Zero overhead in production.",
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs",
+      "types": "./dist/index.d.ts"
+    },
+    "./noop": {
+      "import": "./dist/noop.js",
+      "require": "./dist/noop.cjs",
+      "types": "./dist/noop.d.ts"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src --ext .ts,.tsx",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "logger",
+    "debug",
+    "console",
+    "devtools",
+    "browser",
+    "development",
+    "debugging",
+    "log-viewer",
+    "overlay"
+  ],
+  "author": "Alexander Remer",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Oko-Tester/logview.git"
+  },
+  "bugs": {
+    "url": "https://github.com/Oko-Tester/logview/issues"
+  },
+  "homepage": "https://github.com/Oko-Tester/logview#readme",
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "sideEffects": false,
+  "devDependencies": {
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vite-plugin-dts": "^3.7.0",
+    "vitest": "^1.2.0",
+    "eslint": "^8.56.0",
+    "@typescript-eslint/eslint-plugin": "^6.19.0",
+    "@typescript-eslint/parser": "^6.19.0"
+  },
+  "peerDependencies": {},
+  "dependencies": {}
+}
