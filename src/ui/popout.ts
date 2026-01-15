@@ -7,8 +7,8 @@
  * - Maintaining connection when main app crashes
  */
 
-import { channel, type ChannelMessage } from '../channel/broadcast';
-import { logger } from '../core/logger';
+import { channel, type ChannelMessage } from "../channel/broadcast";
+import { logger } from "../core/logger";
 
 /** Pop-out window dimensions */
 const POPOUT_WIDTH = 500;
@@ -20,7 +20,7 @@ let popoutWindow: Window | null = null;
 /** Check if we're running inside the pop-out window */
 export function isPopoutWindow(): boolean {
   try {
-    return window.name === 'devlogger-popout';
+    return window.name === "devlogger-popout";
   } catch {
     return false;
   }
@@ -46,22 +46,23 @@ export function openPopout(): Window | null {
 
     // Open new window
     popoutWindow = window.open(
-      '',
-      'devlogger-popout',
+      "",
+      "devlogger-popout",
       `width=${POPOUT_WIDTH},height=${POPOUT_HEIGHT},left=${left},top=${top},resizable=yes,scrollbars=yes`
     );
 
     if (!popoutWindow) {
-      console.warn('[DevLogger] Pop-out blocked by browser');
+      console.warn("[DevLogger] Pop-out blocked by browser");
       return null;
     }
 
     // Write content to window
+    popoutWindow.document.open();
     popoutWindow.document.write(popoutHtml);
     popoutWindow.document.close();
 
     // Send initial sync after window loads
-    popoutWindow.addEventListener('load', () => {
+    popoutWindow.addEventListener("load", () => {
       // Give the pop-out time to set up its channel listener
       setTimeout(() => {
         channel.sendSyncResponse(logger.getLogs());
@@ -70,7 +71,7 @@ export function openPopout(): Window | null {
 
     return popoutWindow;
   } catch (e) {
-    console.warn('[DevLogger] Failed to open pop-out:', e);
+    console.warn("[DevLogger] Failed to open pop-out:", e);
     return null;
   }
 }
@@ -107,7 +108,7 @@ export function setupMainWindowBroadcast(): void {
 
   // Handle sync requests from pop-out
   channel.subscribe((message: ChannelMessage) => {
-    if (message.type === 'SYNC_REQUEST') {
+    if (message.type === "SYNC_REQUEST") {
       channel.sendSyncResponse(logger.getLogs());
     }
   });
