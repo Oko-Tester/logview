@@ -53,6 +53,9 @@ export class Timeline {
   private ctx: CanvasRenderingContext2D | null = null;
   private intervalId: number | null = null;
   private tooltip: HTMLElement | null = null;
+  // Bounds maps to avoid mutating readonly objects
+  private spanBounds: Map<string, { x: number; y: number; w: number; h: number }> = new Map();
+  private logBounds: Map<string, { x: number; y: number; r: number }> = new Map();
 
   constructor(userConfig: TimelineConfig) {
     const containerEl =
@@ -242,6 +245,10 @@ export class Timeline {
     ctx.fillStyle = '#1e1e1e';
     ctx.fillRect(0, 0, width, height);
 
+    // Clear bounds maps
+    this.spanBounds.clear();
+    this.logBounds.clear();
+
     // Draw time grid
     this.drawTimeGrid(ctx, width, height, startTime, now);
 
@@ -329,13 +336,13 @@ export class Timeline {
       const label = span.duration ? `${span.name} (${span.duration}ms)` : span.name;
       ctx.fillText(label, x1 + 4, y + 14, barWidth - 8);
 
-      // Store for hit testing
-      (span as SpanEvent & { _bounds?: { x: number; y: number; w: number; h: number } })._bounds = {
+      // Store for hit testing (in map to avoid mutating readonly object)
+      this.spanBounds.set(span.id, {
         x: x1,
         y,
         w: barWidth,
         h: spanHeight,
-      };
+      });
 
       return y + spanHeight + spanMargin;
     };
@@ -370,12 +377,12 @@ export class Timeline {
       ctx.closePath();
       ctx.fill();
 
-      // Store for hit testing
-      (log as LogEvent & { _bounds?: { x: number; y: number; r: number } })._bounds = {
+      // Store for hit testing (in map to avoid mutating readonly object)
+      this.logBounds.set(log.id, {
         x,
         y: height - bottomOffset - markerHeight / 2,
         r: markerHeight,
-      };
+      });
     }
   }
 
@@ -388,12 +395,12 @@ export class Timeline {
 
     // Check spans
     for (const span of logger.getSpans()) {
-      const bounds = (span as SpanEvent & { _bounds?: { x: number; y: number; w: number; h: number } })._bounds;
+      const bounds = this.spanBounds.get(span.id);
       if (bounds && x >= bounds.x && x <= bounds.x + bounds.w && y >= bounds.y && y <= bounds.y + bounds.h) {
         this.showTooltip(e, `
           <strong>${span.name}</strong><br>
           Status: ${span.status}<br>
-          ${span.duration ? `Duration: ${span.duration}ms` : 'Running...'}<br>
+          ${span.duration !== undefined ? `Duration: ${span.duration}ms` : 'Running...'}<br>
           ${span.context ? `Context: ${JSON.stringify(span.context)}` : ''}
         `);
         return;
@@ -402,7 +409,7 @@ export class Timeline {
 
     // Check logs
     for (const log of logger.getLogs()) {
-      const bounds = (log as LogEvent & { _bounds?: { x: number; y: number; r: number } })._bounds;
+      const bounds = this.logBounds.get(log.id);
       if (bounds) {
         const dist = Math.sqrt((x - bounds.x) ** 2 + (y - bounds.y) ** 2);
         if (dist <= bounds.r) {
