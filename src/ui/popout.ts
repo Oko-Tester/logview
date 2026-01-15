@@ -223,6 +223,23 @@ function generatePopoutHtml(): string {
       color: var(--text-primary);
     }
 
+    .btn-copy {
+      font-size: 10px;
+      padding: 4px 8px;
+    }
+
+    .btn-copy.success {
+      background: #4caf50;
+      border-color: #4caf50;
+      color: white;
+    }
+
+    .btn-copy.error {
+      background: var(--level-error);
+      border-color: var(--level-error);
+      color: white;
+    }
+
     /* Filter Bar Styles */
     .filter-bar {
       padding: 8px 16px;
@@ -463,6 +480,8 @@ function generatePopoutHtml(): string {
       <span id="status-text">Connected</span>
     </div>
     <div class="actions">
+      <button class="btn btn-copy" id="btn-copy-json" title="Copy as JSON">JSON</button>
+      <button class="btn btn-copy" id="btn-copy-text" title="Copy as Text">TXT</button>
       <button class="btn" id="btn-clear">Clear</button>
     </div>
   </div>
@@ -511,6 +530,8 @@ function generatePopoutHtml(): string {
     const statusDot = document.getElementById('status-dot');
     const statusText = document.getElementById('status-text');
     const btnClear = document.getElementById('btn-clear');
+    const btnCopyJson = document.getElementById('btn-copy-json');
+    const btnCopyText = document.getElementById('btn-copy-text');
     const filterBar = document.getElementById('filter-bar');
     const filterSearch = document.getElementById('filter-search');
     const filterFile = document.getElementById('filter-file');
@@ -766,6 +787,53 @@ function generatePopoutHtml(): string {
         });
       }
       clearLogs();
+    });
+
+    // Export logs as JSON
+    function exportLogsJson() {
+      return JSON.stringify(logs, null, 2);
+    }
+
+    // Export logs as text
+    function exportLogsText() {
+      return logs.map(log => {
+        const time = new Date(log.timestamp).toISOString();
+        const level = log.level.toUpperCase().padEnd(5);
+        const source = log.source.file + ':' + log.source.line;
+        const context = log.context ? ' [' + Object.entries(log.context).map(([k, v]) => k + '=' + v).join(', ') + ']' : '';
+        const span = log.spanId ? ' (span: ' + log.spanId + ')' : '';
+        const data = log.data.length > 0 ? '\\n  Data: ' + JSON.stringify(log.data) : '';
+        return '[' + time + '] ' + level + ' ' + log.message + context + span + '\\n  Source: ' + source + data;
+      }).join('\\n\\n');
+    }
+
+    // Show copy feedback
+    function showCopyFeedback(button, success) {
+      const originalText = button.textContent;
+      button.textContent = success ? '✓' : '✗';
+      button.classList.add(success ? 'success' : 'error');
+      setTimeout(() => {
+        button.textContent = originalText;
+        button.classList.remove('success', 'error');
+      }, 1500);
+    }
+
+    // Copy JSON handler
+    btnCopyJson.addEventListener('click', () => {
+      navigator.clipboard.writeText(exportLogsJson()).then(() => {
+        showCopyFeedback(btnCopyJson, true);
+      }).catch(() => {
+        showCopyFeedback(btnCopyJson, false);
+      });
+    });
+
+    // Copy Text handler
+    btnCopyText.addEventListener('click', () => {
+      navigator.clipboard.writeText(exportLogsText()).then(() => {
+        showCopyFeedback(btnCopyText, true);
+      }).catch(() => {
+        showCopyFeedback(btnCopyText, false);
+      });
     });
 
     // Check connection periodically
