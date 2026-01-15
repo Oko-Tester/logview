@@ -16,8 +16,10 @@ import type {
   LogContext,
   SpanEvent,
   SpanStatus,
+  DiffResult,
 } from './types';
 import { LOG_LEVEL_VALUES } from './types';
+import { createDiffResult } from './diff';
 
 /**
  * Export format options
@@ -769,6 +771,49 @@ class LoggerCore {
       return true;
     } catch {
       return false;
+    }
+  }
+
+  // ========== Diff API ==========
+
+  /**
+   * Log a visual diff between two objects
+   */
+  diff(message: string, oldObj: unknown, newObj: unknown, level: LogLevel = 'info'): DiffResult {
+    try {
+      const diffResult = createDiffResult(oldObj, newObj);
+
+      // Log with the diff data attached
+      this.log(level, message, [
+        {
+          __type: 'Diff',
+          diff: diffResult,
+          oldObj: this.safeClone(oldObj),
+          newObj: this.safeClone(newObj),
+        },
+      ]);
+
+      return diffResult;
+    } catch {
+      // Return empty diff on error
+      return {
+        changes: [],
+        summary: { added: 0, removed: 0, changed: 0, unchanged: 0 },
+      };
+    }
+  }
+
+  /**
+   * Compute diff without logging (utility method)
+   */
+  computeDiff(oldObj: unknown, newObj: unknown): DiffResult {
+    try {
+      return createDiffResult(oldObj, newObj);
+    } catch {
+      return {
+        changes: [],
+        summary: { added: 0, removed: 0, changed: 0, unchanged: 0 },
+      };
     }
   }
 }

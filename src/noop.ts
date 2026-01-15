@@ -46,6 +46,12 @@ const noopContextLogger = {
   withContext: () => noopContextLogger,
 };
 
+// No-op diff result
+const noopDiffResult = {
+  changes: [] as const,
+  summary: { added: 0, removed: 0, changed: 0, unchanged: 0 },
+};
+
 export const logger = {
   info: noop,
   warn: noop,
@@ -73,6 +79,9 @@ export const logger = {
   // Export API
   exportLogs: () => '[]',
   copyLogs: noopAsync,
+  // Diff API
+  diff: () => noopDiffResult,
+  computeDiff: () => noopDiffResult,
 };
 
 export const DevLoggerUI = {
@@ -118,6 +127,38 @@ export const LogPersistence = {
   }),
 };
 
+export const NetworkCapture = {
+  install: noop,
+  uninstall: noop,
+  isActive: () => false,
+  getConfig: () => ({
+    captureFetch: false,
+    captureXHR: false,
+    includeHeaders: false,
+    includeBody: false,
+    includeResponse: false,
+    maxResponseLength: 1000,
+    ignorePatterns: [] as const,
+    context: {},
+  }),
+  addIgnorePattern: noop,
+};
+
+// No-op timeline
+class NoopTimeline {
+  setTimeWindow = noop;
+  destroy = noop;
+}
+
+export const Timeline = NoopTimeline;
+export const createTimeline = () => new NoopTimeline();
+
+// No-op diff utilities
+export const computeDiff = () => [] as const;
+export const createDiffResult = () => noopDiffResult;
+export const hasChanges = () => false;
+export const formatValue = (v: unknown) => String(v);
+
 export const VERSION = '0.1.0';
 
 // Types are still exported for type-checking
@@ -132,8 +173,13 @@ export type {
   LogContext,
   SpanEvent,
   SpanStatus,
+  DiffEntry,
+  DiffResult,
+  DiffChangeType,
 } from './core/types';
 export type { FilterState } from './ui/filter';
 export type { ErrorCaptureConfig } from './core/error-capture';
 export type { PersistenceConfig } from './core/persistence';
+export type { NetworkCaptureConfig } from './core/network-capture';
+export type { TimelineConfig } from './ui/timeline';
 export type { ExportOptions, LogSpan, ContextLogger } from './core/logger';

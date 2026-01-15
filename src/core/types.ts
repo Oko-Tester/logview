@@ -122,3 +122,37 @@ export const LOG_LEVEL_VALUES: Record<LogLevel, number> = {
   warn: 2,
   error: 3,
 };
+
+/**
+ * Diff change type
+ */
+export type DiffChangeType = 'added' | 'removed' | 'changed' | 'unchanged';
+
+/**
+ * A single diff entry for object comparison
+ */
+export interface DiffEntry {
+  /** Path to the property (e.g., "user.profile.name") */
+  path: string;
+  /** Type of change */
+  type: DiffChangeType;
+  /** Old value (for removed/changed) */
+  oldValue?: unknown;
+  /** New value (for added/changed) */
+  newValue?: unknown;
+}
+
+/**
+ * Diff result for object comparison
+ */
+export interface DiffResult {
+  /** All changes found */
+  changes: DiffEntry[];
+  /** Summary counts */
+  summary: {
+    added: number;
+    removed: number;
+    changed: number;
+    unchanged: number;
+  };
+}

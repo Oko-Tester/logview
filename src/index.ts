@@ -148,6 +148,90 @@ export { LogPersistence } from './core/persistence';
 export type { PersistenceConfig } from './core/persistence';
 
 // ============================================================================
+// Network Capture API
+// ============================================================================
+
+/**
+ * Network capture for automatic request/response tracking.
+ *
+ * @example
+ * ```typescript
+ * // Install at app start to auto-capture network requests
+ * NetworkCapture.install();
+ *
+ * // With configuration
+ * NetworkCapture.install({
+ *   includeHeaders: true,
+ *   ignorePatterns: ['/analytics', /\.hot-update\./],
+ * });
+ *
+ * // Later, uninstall if needed
+ * NetworkCapture.uninstall();
+ * ```
+ */
+export { NetworkCapture } from './core/network-capture';
+
+/**
+ * Configuration type for network capture.
+ */
+export type { NetworkCaptureConfig } from './core/network-capture';
+
+// ============================================================================
+// Timeline API
+// ============================================================================
+
+/**
+ * Timeline visualization for logs and spans.
+ *
+ * @example
+ * ```typescript
+ * // Create a timeline in a container
+ * const timeline = createTimeline({
+ *   container: '#timeline-container',
+ *   timeWindow: 60000, // 1 minute
+ *   showSpans: true,
+ *   showLogs: true,
+ * });
+ *
+ * // Change time window
+ * timeline.setTimeWindow(30000); // 30 seconds
+ *
+ * // Cleanup
+ * timeline.destroy();
+ * ```
+ */
+export { Timeline, createTimeline } from './ui/timeline';
+
+/**
+ * Configuration type for timeline.
+ */
+export type { TimelineConfig } from './ui/timeline';
+
+// ============================================================================
+// Diff Utilities
+// ============================================================================
+
+/**
+ * Diff utility functions for object comparison.
+ *
+ * @example
+ * ```typescript
+ * // Log a visual diff
+ * logger.diff('Config changed', oldConfig, newConfig);
+ *
+ * // Compute diff without logging
+ * const result = logger.computeDiff(oldObj, newObj);
+ * console.log(result.summary); // { added: 2, removed: 1, changed: 3, unchanged: 5 }
+ * ```
+ */
+export { computeDiff, createDiffResult, hasChanges, formatValue } from './core/diff';
+
+/**
+ * Diff-related type definitions.
+ */
+export type { DiffEntry, DiffResult, DiffChangeType } from './core/types';
+
+// ============================================================================
 // Package Info
 // ============================================================================
 

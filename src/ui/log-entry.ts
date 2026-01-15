@@ -9,7 +9,7 @@
  * - Expandable data
  */
 
-import type { LogEvent } from '../core/types';
+import type { LogEvent, DiffEntry, DiffResult } from '../core/types';
 
 /**
  * Format timestamp for display (HH:MM:SS.mmm)
@@ -34,6 +34,93 @@ function formatSource(source: LogEvent['source']): string {
 }
 
 /**
+ * Check if data item is a diff result
+ */
+function isDiffData(item: unknown): item is { __type: 'Diff'; diff: DiffResult; oldObj: unknown; newObj: unknown } {
+  return (
+    item !== null &&
+    typeof item === 'object' &&
+    (item as Record<string, unknown>).__type === 'Diff' &&
+    (item as Record<string, unknown>).diff !== undefined
+  );
+}
+
+/**
+ * Format a value for diff display
+ */
+function formatDiffValue(value: unknown): string {
+  if (value === undefined) return 'undefined';
+  if (value === null) return 'null';
+  if (typeof value === 'string') return `"${value}"`;
+  if (typeof value === 'number' || typeof value === 'boolean') return String(value);
+  if (Array.isArray(value)) {
+    if (value.length === 0) return '[]';
+    if (value.length <= 3) return `[${value.map(formatDiffValue).join(', ')}]`;
+    return `[${value.length} items]`;
+  }
+  if (typeof value === 'object') {
+    const keys = Object.keys(value);
+    if (keys.length === 0) return '{}';
+    if (keys.length <= 2) {
+      return `{${keys.map((k) => `${k}: ${formatDiffValue((value as Record<string, unknown>)[k])}`).join(', ')}}`;
+    }
+    return `{${keys.length} keys}`;
+  }
+  return String(value);
+}
+
+/**
+ * Format diff entry for display
+ */
+function formatDiffEntry(entry: DiffEntry): string {
+  const typeClass = `diff-${entry.type}`;
+  const icon = entry.type === 'added' ? '+' : entry.type === 'removed' ? '-' : entry.type === 'changed' ? '~' : ' ';
+
+  let valueStr = '';
+  if (entry.type === 'added') {
+    valueStr = formatDiffValue(entry.newValue);
+  } else if (entry.type === 'removed') {
+    valueStr = formatDiffValue(entry.oldValue);
+  } else if (entry.type === 'changed') {
+    valueStr = `${formatDiffValue(entry.oldValue)} → ${formatDiffValue(entry.newValue)}`;
+  }
+
+  return `<div class="diff-entry ${typeClass}"><span class="diff-icon">${icon}</span> <span class="diff-path">${entry.path}</span>: <span class="diff-value">${valueStr}</span></div>`;
+}
+
+/**
+ * Format diff result for display
+ */
+function formatDiff(diffData: { __type: 'Diff'; diff: DiffResult; oldObj: unknown; newObj: unknown }): string {
+  const { diff } = diffData;
+  const { summary, changes } = diff;
+
+  let html = '<div class="diff-container">';
+
+  // Summary
+  html += '<div class="diff-summary">';
+  if (summary.added > 0) html += `<span class="diff-count diff-added">+${summary.added}</span>`;
+  if (summary.removed > 0) html += `<span class="diff-count diff-removed">-${summary.removed}</span>`;
+  if (summary.changed > 0) html += `<span class="diff-count diff-changed">~${summary.changed}</span>`;
+  if (summary.added === 0 && summary.removed === 0 && summary.changed === 0) {
+    html += '<span class="diff-count diff-unchanged">No changes</span>';
+  }
+  html += '</div>';
+
+  // Changes
+  if (changes.length > 0) {
+    html += '<div class="diff-changes">';
+    for (const entry of changes) {
+      html += formatDiffEntry(entry);
+    }
+    html += '</div>';
+  }
+
+  html += '</div>';
+  return html;
+}
+
+/**
  * Safely stringify data for display
  */
 function formatData(data: unknown[]): string {
@@ -53,6 +140,13 @@ function formatData(data: unknown[]): string {
   } catch {
     return '[Unable to display data]';
   }
+}
+
+/**
+ * Check if data contains a diff
+ */
+function containsDiff(data: unknown[]): boolean {
+  return data.some(isDiffData);
 }
 
 /**
@@ -88,8 +182,37 @@ export function createLogEntry(log: LogEvent): HTMLElement {
   }
 
   const hasData = log.data.length > 0;
+  const hasDiff = containsDiff(log.data);
   const hasContext = log.context && Object.keys(log.context).length > 0;
   const dataId = `data-${log.id}`;
+
+  // Render diff data specially
+  const renderData = (): string => {
+    if (!hasData) return '';
+
+    if (hasDiff) {
+      const diffItem = log.data.find(isDiffData);
+      if (diffItem) {
+        return `
+          <div class="log-data log-data-diff">
+            <button class="log-data-toggle" data-target="${dataId}">
+              diff
+            </button>
+            <div class="log-data-content" id="${dataId}">${formatDiff(diffItem)}</div>
+          </div>
+        `;
+      }
+    }
+
+    return `
+      <div class="log-data">
+        <button class="log-data-toggle" data-target="${dataId}">
+          ${log.data.length} item${log.data.length > 1 ? 's' : ''}
+        </button>
+        <pre class="log-data-content" id="${dataId}">${escapeHtml(formatData(log.data))}</pre>
+      </div>
+    `;
+  };
 
   entry.innerHTML = `
     <div class="log-entry-header">
@@ -99,18 +222,7 @@ export function createLogEntry(log: LogEvent): HTMLElement {
       <span class="log-source" title="${escapeHtml(formatSource(log.source))}">${escapeHtml(formatSource(log.source))}</span>
     </div>
     <div class="log-message">${escapeHtml(log.message)}</div>
-    ${
-      hasData
-        ? `
-      <div class="log-data">
-        <button class="log-data-toggle" data-target="${dataId}">
-          ${log.data.length} item${log.data.length > 1 ? 's' : ''}
-        </button>
-        <pre class="log-data-content" id="${dataId}">${escapeHtml(formatData(log.data))}</pre>
-      </div>
-    `
-        : ''
-    }
+    ${renderData()}
   `;
 
   // Add click handler for data toggle

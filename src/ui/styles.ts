@@ -487,4 +487,91 @@ export const STYLES = `
   .devlogger-no-results-text {
     font-style: italic;
   }
+
+  /* Diff Display */
+  .diff-container {
+    font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+    font-size: 11px;
+  }
+
+  .diff-summary {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 8px;
+    padding-bottom: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .diff-count {
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+  }
+
+  .diff-count.diff-added {
+    background: rgba(80, 200, 120, 0.2);
+    color: #50c878;
+  }
+
+  .diff-count.diff-removed {
+    background: rgba(241, 76, 76, 0.2);
+    color: ${COLORS.levelError};
+  }
+
+  .diff-count.diff-changed {
+    background: rgba(204, 167, 0, 0.2);
+    color: ${COLORS.levelWarn};
+  }
+
+  .diff-count.diff-unchanged {
+    background: var(--bg-hover);
+    color: var(--text-muted);
+  }
+
+  .diff-changes {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .diff-entry {
+    padding: 2px 6px;
+    border-radius: 3px;
+    display: flex;
+    gap: 6px;
+  }
+
+  .diff-entry.diff-added {
+    background: rgba(80, 200, 120, 0.1);
+    color: #50c878;
+  }
+
+  .diff-entry.diff-removed {
+    background: rgba(241, 76, 76, 0.1);
+    color: ${COLORS.levelError};
+  }
+
+  .diff-entry.diff-changed {
+    background: rgba(204, 167, 0, 0.1);
+    color: ${COLORS.levelWarn};
+  }
+
+  .diff-icon {
+    font-weight: bold;
+    width: 12px;
+    flex-shrink: 0;
+  }
+
+  .diff-path {
+    color: var(--text-secondary);
+    flex-shrink: 0;
+  }
+
+  .diff-value {
+    word-break: break-all;
+  }
+
+  .log-data-diff .log-data-toggle {
+    color: ${COLORS.levelInfo};
+  }
 `;
