@@ -1,6 +1,6 @@
 # Devlog-UI
 
-A lightweight, browser-based dev logger with a beautiful debug UI. Zero dependencies, framework-agnostic, production-safe.
+A feature-rich, browser-based dev logger with a beautiful debug UI. Zero dependencies, framework-agnostic, production-safe.
 
 ## Features
 
@@ -28,16 +28,16 @@ npm install devlogger
 ## Quick Start
 
 ```typescript
-import { logger, DevLoggerUI } from 'devlogger';
+import { logger, DevLoggerUI } from "devlogger";
 
 // Initialize the UI (once, at app start)
 DevLoggerUI.init();
 
 // Log messages with automatic source tracking
-logger.info('App started');
-logger.debug('Loading config', { theme: 'dark' });
-logger.warn('Cache miss', { key: 'user_prefs' });
-logger.error('API failed', new Error('Network timeout'));
+logger.info("App started");
+logger.debug("Loading config", { theme: "dark" });
+logger.warn("Cache miss", { key: "user_prefs" });
+logger.error("API failed", new Error("Network timeout"));
 ```
 
 ## API Reference
@@ -64,9 +64,9 @@ logger.error(message: string, ...data: unknown[]): void
 
 ```typescript
 logger.configure({
-  maxLogs: 1000,      // Max logs in memory (FIFO rotation)
-  minLevel: 'debug',  // Minimum level: 'debug' | 'info' | 'warn' | 'error'
-  enabled: true,      // Enable/disable logging
+  maxLogs: 1000, // Max logs in memory (FIFO rotation)
+  minLevel: "debug", // Minimum level: 'debug' | 'info' | 'warn' | 'error'
+  enabled: true, // Enable/disable logging
 });
 ```
 
@@ -81,7 +81,7 @@ logger.clear();
 
 // Subscribe to new logs
 const unsubscribe = logger.subscribe((log: LogEvent) => {
-  console.log('New log:', log);
+  console.log("New log:", log);
 });
 unsubscribe(); // Stop receiving logs
 
@@ -98,29 +98,29 @@ Group related logs together with timing and status:
 
 ```typescript
 // Create a span for an operation
-const span = logger.span('Load user profile');
-span.info('Fetching from API...');
-span.debug('Request payload', { userId: 123 });
+const span = logger.span("Load user profile");
+span.info("Fetching from API...");
+span.debug("Request payload", { userId: 123 });
 
 // End successfully
 span.end(); // status: 'success', duration calculated
 
 // Or end with error
-span.fail('Network timeout'); // status: 'error'
-span.fail(new Error('Timeout')); // also logs the error
+span.fail("Network timeout"); // status: 'error'
+span.fail(new Error("Timeout")); // also logs the error
 ```
 
 #### Nested Spans
 
 ```typescript
-const requestSpan = logger.span('HTTP Request', { requestId: 'abc-123' });
+const requestSpan = logger.span("HTTP Request", { requestId: "abc-123" });
 
-const fetchSpan = requestSpan.span('Fetch Data');
-fetchSpan.info('Fetching...');
+const fetchSpan = requestSpan.span("Fetch Data");
+fetchSpan.info("Fetching...");
 fetchSpan.end();
 
-const processSpan = requestSpan.span('Process Data');
-processSpan.info('Processing...');
+const processSpan = requestSpan.span("Process Data");
+processSpan.info("Processing...");
 processSpan.end();
 
 requestSpan.end(); // Parent span ends after children
@@ -140,7 +140,7 @@ const spanLogs = logger.getSpanLogs(spanId);
 
 // Subscribe to span events
 const unsub = logger.subscribeSpans((span) => {
-  if (span.status === 'error') {
+  if (span.status === "error") {
     console.log(`Span ${span.name} failed after ${span.duration}ms`);
   }
 });
@@ -152,10 +152,10 @@ Attach contextual information to logs for filtering and correlation:
 
 ```typescript
 // Set global context (attached to ALL logs)
-logger.setGlobalContext({ env: 'development', build: '1.2.3' });
+logger.setGlobalContext({ env: "development", build: "1.2.3" });
 
 // Update global context
-logger.updateGlobalContext({ userId: 'user-456' });
+logger.updateGlobalContext({ userId: "user-456" });
 
 // Clear global context
 logger.clearGlobalContext();
@@ -165,16 +165,16 @@ logger.clearGlobalContext();
 
 ```typescript
 // Create a logger with specific context
-const reqLogger = logger.withContext({ requestId: 'req-123' });
-reqLogger.info('Request started'); // includes requestId
+const reqLogger = logger.withContext({ requestId: "req-123" });
+reqLogger.info("Request started"); // includes requestId
 
 // Chain contexts
-const userLogger = reqLogger.withContext({ userId: 'user-456' });
-userLogger.info('User action'); // includes both requestId and userId
+const userLogger = reqLogger.withContext({ userId: "user-456" });
+userLogger.info("User action"); // includes both requestId and userId
 
 // Context loggers can also create spans
-const span = reqLogger.span('Process Request');
-span.info('Processing...'); // inherits requestId
+const span = reqLogger.span("Process Request");
+span.info("Processing..."); // inherits requestId
 span.end();
 ```
 
@@ -184,26 +184,26 @@ Export logs for sharing, bug reports, or analysis:
 
 ```typescript
 // Export as JSON (pretty printed)
-const json = logger.exportLogs({ format: 'json' });
+const json = logger.exportLogs({ format: "json" });
 
 // Export as compact JSON
-const compact = logger.exportLogs({ format: 'json', pretty: false });
+const compact = logger.exportLogs({ format: "json", pretty: false });
 
 // Export as human-readable text
-const text = logger.exportLogs({ format: 'text' });
+const text = logger.exportLogs({ format: "text" });
 
 // Filter exports
 const filtered = logger.exportLogs({
-  format: 'json',
-  levels: ['warn', 'error'],     // Only warnings and errors
-  lastMs: 30000,                  // Last 30 seconds
-  search: 'user',                 // Contains "user"
+  format: "json",
+  levels: ["warn", "error"], // Only warnings and errors
+  lastMs: 30000, // Last 30 seconds
+  search: "user", // Contains "user"
 });
 
 // Copy to clipboard
-const success = await logger.copyLogs({ format: 'json' });
+const success = await logger.copyLogs({ format: "json" });
 if (success) {
-  console.log('Logs copied!');
+  console.log("Logs copied!");
 }
 ```
 
@@ -213,29 +213,34 @@ Compare objects and log changes with color-coded visualization:
 
 ```typescript
 // Log a diff with automatic change detection
-const oldConfig = { theme: 'light', fontSize: 14 };
-const newConfig = { theme: 'dark', fontSize: 14, language: 'en' };
+const oldConfig = { theme: "light", fontSize: 14 };
+const newConfig = { theme: "dark", fontSize: 14, language: "en" };
 
-const diff = logger.diff('Config updated', oldConfig, newConfig);
+const diff = logger.diff("Config updated", oldConfig, newConfig);
 // Logs with visual diff: +1 added, ~1 changed
 
 console.log(diff.summary);
 // { added: 1, removed: 0, changed: 1, unchanged: 1 }
 
 // Specify log level
-logger.diff('Breaking change', oldApi, newApi, 'warn');
+logger.diff("Breaking change", oldApi, newApi, "warn");
 
 // Compute diff without logging
 const result = logger.computeDiff(objA, objB);
 if (result.summary.changed > 0) {
-  logger.warn('Objects differ!', result.changes);
+  logger.warn("Objects differ!", result.changes);
 }
 ```
 
 #### Diff Utilities
 
 ```typescript
-import { computeDiff, createDiffResult, hasChanges, formatValue } from 'devlogger';
+import {
+  computeDiff,
+  createDiffResult,
+  hasChanges,
+  formatValue,
+} from "devlogger";
 
 // Low-level diff computation
 const changes = computeDiff(oldObj, newObj);
@@ -247,7 +252,7 @@ const result = createDiffResult(oldObj, newObj);
 
 // Quick check for any changes
 if (hasChanges(result)) {
-  console.log('Objects are different');
+  console.log("Objects are different");
 }
 
 // Format values for display
@@ -260,32 +265,33 @@ formatValue([1, 2, 3, 4, 5]); // "[5 items]"
 Automatically track Fetch and XHR requests with spans:
 
 ```typescript
-import { NetworkCapture } from 'devlogger';
+import { NetworkCapture } from "devlogger";
 
 // Install at app start
 NetworkCapture.install();
 
 // All fetch calls are now automatically logged
-await fetch('/api/users'); // Creates a span with timing
+await fetch("/api/users"); // Creates a span with timing
 
 // With configuration
 NetworkCapture.install({
-  captureFetch: true,       // Hook into fetch (default: true)
-  captureXHR: true,         // Hook into XHR (default: true)
-  includeHeaders: true,     // Log request headers (default: false)
-  includeBody: true,        // Log request body (default: false)
-  includeResponse: true,    // Log response body (default: false)
-  maxResponseLength: 5000,  // Max response chars to capture
-  ignorePatterns: [         // URLs to ignore
-    '/analytics',
+  captureFetch: true, // Hook into fetch (default: true)
+  captureXHR: true, // Hook into XHR (default: true)
+  includeHeaders: true, // Log request headers (default: false)
+  includeBody: true, // Log request body (default: false)
+  includeResponse: true, // Log response body (default: false)
+  maxResponseLength: 5000, // Max response chars to capture
+  ignorePatterns: [
+    // URLs to ignore
+    "/analytics",
     /\.hot-update\./,
     /sockjs/,
   ],
-  context: { service: 'api' } // Context for all network logs
+  context: { service: "api" }, // Context for all network logs
 });
 
 // Add ignore patterns dynamically
-NetworkCapture.addIgnorePattern('/health');
+NetworkCapture.addIgnorePattern("/health");
 
 // Check status
 NetworkCapture.isActive();
@@ -296,6 +302,7 @@ NetworkCapture.uninstall();
 ```
 
 Network requests create spans automatically:
+
 ```
 [info] GET /api/users
   └─ span: "GET /api/users" (234ms, success)
@@ -309,16 +316,16 @@ Network requests create spans automatically:
 Visualize logs and spans on a canvas-based timeline:
 
 ```typescript
-import { createTimeline, Timeline } from 'devlogger';
+import { createTimeline, Timeline } from "devlogger";
 
 // Create timeline in a container
 const timeline = createTimeline({
-  container: '#timeline-container', // CSS selector or HTMLElement
-  timeWindow: 60000,                // Show last 60 seconds
-  refreshInterval: 100,             // Refresh rate in ms
-  showSpans: true,                  // Display span bars
-  showLogs: true,                   // Display log markers
-  height: 200,                      // Canvas height in pixels
+  container: "#timeline-container", // CSS selector or HTMLElement
+  timeWindow: 60000, // Show last 60 seconds
+  refreshInterval: 100, // Refresh rate in ms
+  showSpans: true, // Display span bars
+  showLogs: true, // Display log markers
+  height: 200, // Canvas height in pixels
 });
 
 // Update time window
@@ -329,6 +336,7 @@ timeline.destroy();
 ```
 
 Timeline features:
+
 - Color-coded log markers (debug/info/warn/error)
 - Span bars with duration and nesting
 - Hover tooltips with details
@@ -355,9 +363,9 @@ DevLoggerUI.isPopoutOpen();
 
 // Filter logs programmatically
 DevLoggerUI.setFilter({
-  levels: new Set(['warn', 'error']),  // Show only warnings and errors
-  search: 'api',                        // Text search
-  file: 'utils',                        // Filter by file name
+  levels: new Set(["warn", "error"]), // Show only warnings and errors
+  search: "api", // Text search
+  file: "utils", // Filter by file name
 });
 DevLoggerUI.getFilter();
 DevLoggerUI.clearFilter();
@@ -379,17 +387,17 @@ Press `Ctrl+Shift+L` to toggle the debug panel.
 Automatically capture uncaught errors and unhandled promise rejections:
 
 ```typescript
-import { ErrorCapture } from 'devlogger';
+import { ErrorCapture } from "devlogger";
 
 // Install at app start
 ErrorCapture.install();
 
 // With custom configuration
 ErrorCapture.install({
-  captureErrors: true,       // Capture window.onerror (default: true)
-  captureRejections: true,   // Capture unhandledrejection (default: true)
-  errorPrefix: '[ERROR]',    // Prefix for error messages
-  rejectionPrefix: '[REJECT]' // Prefix for rejection messages
+  captureErrors: true, // Capture window.onerror (default: true)
+  captureRejections: true, // Capture unhandledrejection (default: true)
+  errorPrefix: "[ERROR]", // Prefix for error messages
+  rejectionPrefix: "[REJECT]", // Prefix for rejection messages
 });
 
 // Check if active
@@ -409,7 +417,7 @@ All captured errors are automatically logged as `error` level with full stack tr
 Persist logs to survive page crashes and enable crash recovery:
 
 ```typescript
-import { LogPersistence, logger } from 'devlogger';
+import { LogPersistence, logger } from "devlogger";
 
 // Enable persistence at app start
 LogPersistence.enable();
@@ -422,9 +430,9 @@ if (LogPersistence.hadCrash()) {
 
 // With custom configuration
 LogPersistence.enable({
-  storage: 'session',    // 'session' (sessionStorage) or 'local' (localStorage)
-  maxPersisted: 500,     // Max logs to persist
-  debounceMs: 100        // Debounce writes for performance
+  storage: "session", // 'session' (sessionStorage) or 'local' (localStorage)
+  maxPersisted: 500, // Max logs to persist
+  debounceMs: 100, // Debounce writes for performance
 });
 
 // Check if active
@@ -453,11 +461,10 @@ For production, import from `devlogger/noop` to completely eliminate logging cod
 export default defineConfig({
   resolve: {
     alias: {
-      'devlogger': process.env.NODE_ENV === 'production'
-        ? 'devlogger/noop'
-        : 'devlogger'
-    }
-  }
+      devlogger:
+        process.env.NODE_ENV === "production" ? "devlogger/noop" : "devlogger",
+    },
+  },
 });
 ```
 
@@ -468,11 +475,10 @@ export default defineConfig({
 module.exports = {
   resolve: {
     alias: {
-      'devlogger': process.env.NODE_ENV === 'production'
-        ? 'devlogger/noop'
-        : 'devlogger'
-    }
-  }
+      devlogger:
+        process.env.NODE_ENV === "production" ? "devlogger/noop" : "devlogger",
+    },
+  },
 };
 ```
 
@@ -480,12 +486,11 @@ module.exports = {
 
 ```javascript
 // build.js
-require('esbuild').build({
+require("esbuild").build({
   alias: {
-    'devlogger': process.env.NODE_ENV === 'production'
-      ? 'devlogger/noop'
-      : 'devlogger'
-  }
+    devlogger:
+      process.env.NODE_ENV === "production" ? "devlogger/noop" : "devlogger",
+  },
 });
 ```
 
@@ -495,13 +500,25 @@ The `noop` export provides the same API but all functions are no-ops, resulting 
 
 ```typescript
 import type {
-  LogEvent, LogLevel, LoggerConfig, Source, FilterState,
-  ErrorCaptureConfig, LogContext, SpanEvent, SpanStatus, ExportOptions,
-  DiffEntry, DiffResult, DiffChangeType, NetworkCaptureConfig, TimelineConfig
-} from 'devlogger';
+  LogEvent,
+  LogLevel,
+  LoggerConfig,
+  Source,
+  FilterState,
+  ErrorCaptureConfig,
+  LogContext,
+  SpanEvent,
+  SpanStatus,
+  ExportOptions,
+  DiffEntry,
+  DiffResult,
+  DiffChangeType,
+  NetworkCaptureConfig,
+  TimelineConfig,
+} from "devlogger";
 
-type LogLevel = 'debug' | 'info' | 'warn' | 'error';
-type SpanStatus = 'running' | 'success' | 'error';
+type LogLevel = "debug" | "info" | "warn" | "error";
+type SpanStatus = "running" | "success" | "error";
 type LogContext = Record<string, string | number | boolean>;
 
 interface Source {
@@ -519,8 +536,8 @@ interface LogEvent {
   data: unknown[];
   source: Source;
   sessionId: string;
-  context?: LogContext;  // Attached context/tags
-  spanId?: string;       // Parent span ID
+  context?: LogContext; // Attached context/tags
+  spanId?: string; // Parent span ID
 }
 
 interface SpanEvent {
@@ -530,7 +547,7 @@ interface SpanEvent {
   endTime?: number;
   duration?: number;
   status: SpanStatus;
-  parentId?: string;     // For nested spans
+  parentId?: string; // For nested spans
   context?: LogContext;
   source: Source;
   sessionId: string;
@@ -543,11 +560,11 @@ interface LoggerConfig {
 }
 
 interface ExportOptions {
-  format?: 'json' | 'text';
-  lastMs?: number;        // Filter by time
-  levels?: LogLevel[];    // Filter by levels
-  search?: string;        // Filter by text
-  pretty?: boolean;       // Pretty print JSON
+  format?: "json" | "text";
+  lastMs?: number; // Filter by time
+  levels?: LogLevel[]; // Filter by levels
+  search?: string; // Filter by text
+  pretty?: boolean; // Pretty print JSON
 }
 
 interface FilterState {
@@ -564,16 +581,16 @@ interface ErrorCaptureConfig {
 }
 
 interface PersistenceConfig {
-  storage?: 'session' | 'local';
+  storage?: "session" | "local";
   maxPersisted?: number;
   debounceMs?: number;
 }
 
 // Diff types
-type DiffChangeType = 'added' | 'removed' | 'changed' | 'unchanged';
+type DiffChangeType = "added" | "removed" | "changed" | "unchanged";
 
 interface DiffEntry {
-  path: string;           // e.g., "user.profile.name"
+  path: string; // e.g., "user.profile.name"
   type: DiffChangeType;
   oldValue?: unknown;
   newValue?: unknown;
@@ -664,6 +681,7 @@ interface TimelineConfig {
 - Safari 14+
 
 Requires support for:
+
 - Shadow DOM
 - BroadcastChannel
 - ES2020+
