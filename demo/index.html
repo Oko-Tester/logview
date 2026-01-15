@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DevLogger Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: #f5f5f5;
+    }
+    h1 {
+      color: #333;
+      margin-bottom: 8px;
+    }
+    .subtitle {
+      color: #666;
+      margin-bottom: 32px;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 24px;
+    }
+    button {
+      padding: 10px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.15s ease;
+    }
+    .btn-debug { background: #6e6e6e; color: white; }
+    .btn-info { background: #3794ff; color: white; }
+    .btn-warn { background: #cca700; color: white; }
+    .btn-error { background: #f14c4c; color: white; }
+    .btn-action { background: #0e639c; color: white; }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .section {
+      background: white;
+      padding: 24px;
+      border-radius: 8px;
+      margin-bottom: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    }
+    h2 {
+      font-size: 18px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    code {
+      background: #e8e8e8;
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 13px;
+    }
+    .hint {
+      background: #e7f3ff;
+      border-left: 4px solid #3794ff;
+      padding: 12px 16px;
+      border-radius: 0 4px 4px 0;
+      margin-top: 24px;
+    }
+  </style>
+</head>
+<body>
+  <h1>DevLogger Demo</h1>
+  <p class="subtitle">Browser-based Dev Logger with UI</p>
+
+  <div class="section">
+    <h2>Log Messages</h2>
+    <div class="controls">
+      <button class="btn-debug" onclick="logDebug()">Debug</button>
+      <button class="btn-info" onclick="logInfo()">Info</button>
+      <button class="btn-warn" onclick="logWarn()">Warning</button>
+      <button class="btn-error" onclick="logError()">Error</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Log with Data</h2>
+    <div class="controls">
+      <button class="btn-info" onclick="logWithObject()">Object</button>
+      <button class="btn-info" onclick="logWithArray()">Array</button>
+      <button class="btn-error" onclick="logWithError()">Error Object</button>
+      <button class="btn-warn" onclick="logWithCircular()">Circular Ref</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>UI Controls</h2>
+    <div class="controls">
+      <button class="btn-action" onclick="DevLoggerUI.open()">Open Panel</button>
+      <button class="btn-action" onclick="DevLoggerUI.close()">Close Panel</button>
+      <button class="btn-action" onclick="DevLoggerUI.toggle()">Toggle Panel</button>
+      <button class="btn-action" onclick="logger.clear()">Clear Logs</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Stress Test</h2>
+    <div class="controls">
+      <button class="btn-warn" onclick="stressTest(100)">100 Logs</button>
+      <button class="btn-warn" onclick="stressTest(500)">500 Logs</button>
+      <button class="btn-error" onclick="stressTest(1000)">1000 Logs</button>
+    </div>
+  </div>
+
+  <div class="hint">
+    <strong>Tip:</strong> Press <code>Ctrl+Shift+L</code> to toggle the DevLogger panel,
+    or click the floating button in the bottom-right corner.
+  </div>
+
+  <script type="module">
+    import { logger, DevLoggerUI, ErrorCapture, LogPersistence } from '../src/index.ts';
+
+    // Make available globally for onclick handlers
+    window.logger = logger;
+    window.DevLoggerUI = DevLoggerUI;
+
+    // Enable persistence and error capture
+    LogPersistence.enable();
+    ErrorCapture.install();
+
+    // Rehydrate logs from previous session
+    const restored = LogPersistence.rehydrate();
+    if (LogPersistence.hadCrash()) {
+      logger.warn(`Recovered ${restored} logs from previous crash`);
+    }
+
+    // Initialize UI
+    DevLoggerUI.init();
+
+    // Log some initial messages
+    logger.info('DevLogger initialized');
+    logger.debug('Demo page loaded', { timestamp: new Date().toISOString() });
+
+    // Define demo functions
+    window.logDebug = () => logger.debug('This is a debug message');
+    window.logInfo = () => logger.info('This is an info message');
+    window.logWarn = () => logger.warn('This is a warning message');
+    window.logError = () => logger.error('This is an error message');
+
+    window.logWithObject = () => logger.info('User data', {
+      id: 123,
+      name: 'John Doe',
+      roles: ['admin', 'user'],
+      settings: { theme: 'dark', notifications: true }
+    });
+
+    window.logWithArray = () => logger.info('Items list', [
+      { id: 1, name: 'Item 1' },
+      { id: 2, name: 'Item 2' },
+      { id: 3, name: 'Item 3' }
+    ]);
+
+    window.logWithError = () => {
+      try {
+        throw new Error('Something went wrong!');
+      } catch (e) {
+        logger.error('Caught an exception', e);
+      }
+    };
+
+    window.logWithCircular = () => {
+      const obj = { name: 'circular' };
+      obj.self = obj;
+      logger.warn('Circular reference test', obj);
+    };
+
+    window.stressTest = (count) => {
+      logger.info(`Starting stress test with ${count} logs`);
+      const start = performance.now();
+      for (let i = 0; i < count; i++) {
+        logger.info(`Stress test log #${i + 1}`, { index: i });
+      }
+      const duration = performance.now() - start;
+      logger.info(`Stress test completed in ${duration.toFixed(2)}ms`);
+    };
+
+    console.log('DevLogger demo ready! Try Ctrl+Shift+L to toggle the panel.');
+  </script>
+</body>
+</html>
