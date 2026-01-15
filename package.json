@@ -1,5 +1,5 @@
 {
-  "name": "devlogger",
+  "name": "devlog-ui",
   "version": "0.1.0",
   "description": "Lightweight browser dev-logger with UI overlay and pop-out window. Zero overhead in production.",
   "type": "module",
@@ -45,12 +45,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Oko-Tester/logview.git"
+    "url": "https://github.com/Oko-Tester/devlog-ui.git"
   },
   "bugs": {
-    "url": "https://github.com/Oko-Tester/logview/issues"
+    "url": "https://github.com/Oko-Tester/devlog-ui/issues"
   },
-  "homepage": "https://github.com/Oko-Tester/logview#readme",
+  "homepage": "https://github.com/Oko-Tester/devlog-ui#readme",
   "engines": {
     "node": ">=18.0.0"
   },
