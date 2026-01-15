@@ -409,6 +409,11 @@ export const DevLoggerUI = {
         return;
       }
 
+      // Skip initialization if logger is disabled (e.g., in production)
+      if (!logger.isEnabled()) {
+        return;
+      }
+
       if (typeof document === 'undefined') {
         return;
       }

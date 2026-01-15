@@ -38,13 +38,59 @@ export interface ExportOptions {
 }
 
 /**
+ * Check environment variables to determine if logger should be enabled
+ * Supports various build tools: Vite, Webpack/CRA, generic
+ */
+function checkEnvEnabled(): boolean {
+  try {
+    // Check for explicit disable flag (highest priority)
+    // Vite: import.meta.env.VITE_DEVLOGGER_ENABLED
+    // CRA/Webpack: process.env.REACT_APP_DEVLOGGER_ENABLED
+    // Generic: process.env.DEVLOGGER_ENABLED
+
+    // @ts-expect-error - Vite env
+    if (typeof import.meta !== 'undefined' && import.meta.env) {
+      // @ts-expect-error - Vite env
+      const viteEnabled = import.meta.env.VITE_DEVLOGGER_ENABLED;
+      if (viteEnabled === 'false' || viteEnabled === '0') return false;
+      if (viteEnabled === 'true' || viteEnabled === '1') return true;
+
+      // Check Vite mode
+      // @ts-expect-error - Vite env
+      if (import.meta.env.PROD === true) return false;
+      // @ts-expect-error - Vite env
+      if (import.meta.env.DEV === true) return true;
+    }
+
+    // Check process.env (Node.js / Webpack / CRA)
+    // Use globalThis to avoid TypeScript errors
+    const proc = (globalThis as unknown as { process?: { env?: Record<string, string | undefined> } }).process;
+    if (proc?.env) {
+      // Explicit flag
+      const envEnabled = proc.env.DEVLOGGER_ENABLED || proc.env.REACT_APP_DEVLOGGER_ENABLED;
+      if (envEnabled === 'false' || envEnabled === '0') return false;
+      if (envEnabled === 'true' || envEnabled === '1') return true;
+
+      // NODE_ENV check
+      if (proc.env.NODE_ENV === 'production') return false;
+    }
+
+    // Default: enabled (for development)
+    return true;
+  } catch {
+    // If env check fails, default to enabled
+    return true;
+  }
+}
+
+/**
  * Default configuration values
  */
 const DEFAULT_CONFIG: Required<LoggerConfig> = {
   maxLogs: 1000,
   persist: false,
   minLevel: 'debug',
-  enabled: true,
+  enabled: checkEnvEnabled(),
 };
 
 /**
@@ -597,6 +643,13 @@ class LoggerCore {
    */
   getConfig(): Readonly<Required<LoggerConfig>> {
     return { ...this.config };
+  }
+
+  /**
+   * Check if logging is currently enabled
+   */
+  isEnabled(): boolean {
+    return this.config.enabled;
   }
 
   // ========== Span API ==========

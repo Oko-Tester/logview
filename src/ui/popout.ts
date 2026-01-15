@@ -240,6 +240,73 @@ function generatePopoutHtml(): string {
       color: white;
     }
 
+    .btn-timeline {
+      font-size: 10px;
+      padding: 4px 8px;
+    }
+
+    .btn-timeline.active {
+      background: var(--level-info);
+      border-color: var(--level-info);
+      color: white;
+    }
+
+    /* Timeline Container */
+    .timeline-container {
+      position: relative;
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 8px;
+    }
+
+    #timeline-canvas {
+      width: 100%;
+      height: 120px;
+      background: var(--bg-primary);
+      border-radius: 4px;
+    }
+
+    .timeline-tooltip {
+      position: absolute;
+      background: var(--bg-header);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 10px;
+      font-size: 11px;
+      pointer-events: none;
+      display: none;
+      z-index: 100;
+      max-width: 250px;
+    }
+
+    .timeline-controls {
+      display: flex;
+      justify-content: center;
+      gap: 4px;
+      margin-top: 6px;
+    }
+
+    .timeline-btn {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 2px 8px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 10px;
+    }
+
+    .timeline-btn:hover {
+      background: var(--bg-hover);
+      color: var(--text-primary);
+    }
+
+    .timeline-btn.active {
+      background: var(--button-bg);
+      border-color: var(--button-bg);
+      color: white;
+    }
+
     /* Filter Bar Styles */
     .filter-bar {
       padding: 8px 16px;
@@ -482,7 +549,18 @@ function generatePopoutHtml(): string {
     <div class="actions">
       <button class="btn btn-copy" id="btn-copy-json" title="Copy as JSON">JSON</button>
       <button class="btn btn-copy" id="btn-copy-text" title="Copy as Text">TXT</button>
+      <button class="btn btn-timeline" id="btn-timeline" title="Toggle Timeline">Timeline</button>
       <button class="btn" id="btn-clear">Clear</button>
+    </div>
+  </div>
+
+  <div class="timeline-container" id="timeline-container" style="display: none;">
+    <canvas id="timeline-canvas"></canvas>
+    <div class="timeline-tooltip" id="timeline-tooltip"></div>
+    <div class="timeline-controls">
+      <button class="timeline-btn" data-window="10000">10s</button>
+      <button class="timeline-btn active" data-window="30000">30s</button>
+      <button class="timeline-btn" data-window="60000">60s</button>
     </div>
   </div>
 
@@ -532,7 +610,22 @@ function generatePopoutHtml(): string {
     const btnClear = document.getElementById('btn-clear');
     const btnCopyJson = document.getElementById('btn-copy-json');
     const btnCopyText = document.getElementById('btn-copy-text');
+    const btnTimeline = document.getElementById('btn-timeline');
+    const timelineContainer = document.getElementById('timeline-container');
+    const timelineCanvas = document.getElementById('timeline-canvas');
+    const timelineTooltip = document.getElementById('timeline-tooltip');
     const filterBar = document.getElementById('filter-bar');
+
+    // Timeline state
+    let timelineVisible = false;
+    let timelineWindow = 30000; // 30 seconds default
+    let timelineInterval = null;
+    const LEVEL_COLORS = {
+      debug: '#6e6e6e',
+      info: '#3794ff',
+      warn: '#cca700',
+      error: '#f14c4c'
+    };
     const filterSearch = document.getElementById('filter-search');
     const filterFile = document.getElementById('filter-file');
     const filterStatus = document.getElementById('filter-status');
@@ -876,6 +969,167 @@ function generatePopoutHtml(): string {
     filterFile.addEventListener('input', (e) => {
       filter.file = e.target.value;
       renderAllLogs();
+    });
+
+    // Timeline: Toggle button
+    btnTimeline.addEventListener('click', () => {
+      timelineVisible = !timelineVisible;
+      timelineContainer.style.display = timelineVisible ? 'block' : 'none';
+      btnTimeline.classList.toggle('active', timelineVisible);
+      if (timelineVisible) {
+        resizeCanvas();
+        drawTimeline();
+        startTimelineRefresh();
+      } else {
+        stopTimelineRefresh();
+      }
+    });
+
+    // Timeline: Time window buttons
+    document.querySelectorAll('.timeline-btn[data-window]').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        timelineWindow = parseInt(e.currentTarget.dataset.window);
+        document.querySelectorAll('.timeline-btn[data-window]').forEach(b => b.classList.remove('active'));
+        e.currentTarget.classList.add('active');
+        drawTimeline();
+      });
+    });
+
+    // Timeline: Resize canvas for proper DPI
+    function resizeCanvas() {
+      const rect = timelineCanvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      timelineCanvas.width = rect.width * dpr;
+      timelineCanvas.height = rect.height * dpr;
+      const ctx = timelineCanvas.getContext('2d');
+      ctx.scale(dpr, dpr);
+    }
+
+    // Timeline: Draw the timeline visualization
+    function drawTimeline() {
+      const ctx = timelineCanvas.getContext('2d');
+      const rect = timelineCanvas.getBoundingClientRect();
+      const width = rect.width;
+      const height = rect.height;
+
+      // Clear canvas
+      ctx.fillStyle = '#1e1e1e';
+      ctx.fillRect(0, 0, width, height);
+
+      // Calculate time bounds
+      const now = Date.now();
+      const startTime = now - timelineWindow;
+
+      // Filter logs within time window
+      const visibleLogs = logs.filter(log => log.timestamp >= startTime && log.timestamp <= now);
+
+      // Draw time grid
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      const gridLines = 5;
+      for (let i = 0; i <= gridLines; i++) {
+        const x = (i / gridLines) * width;
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, height);
+        ctx.stroke();
+
+        // Draw time labels
+        const time = new Date(startTime + (i / gridLines) * timelineWindow);
+        ctx.fillStyle = '#666';
+        ctx.font = '10px monospace';
+        ctx.fillText(time.toTimeString().split(' ')[0], x + 3, height - 5);
+      }
+
+      // Draw log markers
+      const markerHeight = 16;
+      const bottomOffset = 20;
+
+      visibleLogs.forEach(log => {
+        const x = ((log.timestamp - startTime) / timelineWindow) * width;
+        const y = height - bottomOffset - markerHeight / 2;
+        const color = LEVEL_COLORS[log.level] || LEVEL_COLORS.debug;
+
+        // Draw marker
+        ctx.beginPath();
+        ctx.arc(x, y, 4, 0, Math.PI * 2);
+        ctx.fillStyle = color;
+        ctx.fill();
+
+        // Store bounds for hover
+        log._timelineBounds = { x, y, r: 8 };
+      });
+
+      // Draw level legend
+      ctx.font = '10px monospace';
+      let legendX = 10;
+      Object.entries(LEVEL_COLORS).forEach(([level, color]) => {
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(legendX, 12, 4, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#888';
+        ctx.fillText(level, legendX + 8, 15);
+        legendX += ctx.measureText(level).width + 20;
+      });
+    }
+
+    // Timeline: Mouse move for tooltips
+    timelineCanvas.addEventListener('mousemove', (e) => {
+      const rect = timelineCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const hoveredLog = logs.find(log => {
+        if (!log._timelineBounds) return false;
+        const b = log._timelineBounds;
+        const dx = x - b.x;
+        const dy = y - b.y;
+        return Math.sqrt(dx * dx + dy * dy) <= b.r;
+      });
+
+      if (hoveredLog) {
+        const time = new Date(hoveredLog.timestamp).toTimeString().split(' ')[0];
+        timelineTooltip.innerHTML =
+          '<strong>[' + hoveredLog.level.toUpperCase() + ']</strong> ' +
+          escapeHtml(hoveredLog.message.substring(0, 100)) +
+          (hoveredLog.message.length > 100 ? '...' : '') +
+          '<br><small>' + time + '</small>';
+        timelineTooltip.style.display = 'block';
+        timelineTooltip.style.left = Math.min(e.clientX - rect.left + 10, rect.width - 260) + 'px';
+        timelineTooltip.style.top = (e.clientY - rect.top - 50) + 'px';
+      } else {
+        timelineTooltip.style.display = 'none';
+      }
+    });
+
+    // Timeline: Hide tooltip on mouse leave
+    timelineCanvas.addEventListener('mouseleave', () => {
+      timelineTooltip.style.display = 'none';
+    });
+
+    // Timeline: Start auto-refresh
+    function startTimelineRefresh() {
+      if (timelineInterval) return;
+      timelineInterval = setInterval(() => {
+        if (timelineVisible) drawTimeline();
+      }, 500);
+    }
+
+    // Timeline: Stop auto-refresh
+    function stopTimelineRefresh() {
+      if (timelineInterval) {
+        clearInterval(timelineInterval);
+        timelineInterval = null;
+      }
+    }
+
+    // Handle window resize for timeline
+    window.addEventListener('resize', () => {
+      if (timelineVisible) {
+        resizeCanvas();
+        drawTimeline();
+      }
     });
 
     // Initialize
