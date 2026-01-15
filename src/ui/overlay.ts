@@ -127,7 +127,7 @@ function createOverlayDOM(shadow: ShadowRoot): void {
 
   // Add button handlers
   container.querySelectorAll('[data-action]').forEach((btn) => {
-    btn.addEventListener('click', async (e) => {
+    btn.addEventListener('click', (e) => {
       const action = (e.currentTarget as HTMLElement).dataset.action;
       const button = e.currentTarget as HTMLButtonElement;
       switch (action) {
@@ -142,16 +142,16 @@ function createOverlayDOM(shadow: ShadowRoot): void {
         case 'close':
           DevLoggerUI.close();
           break;
-        case 'copy-json': {
-          const success = await logger.copyLogs({ format: 'json' });
-          showCopyFeedback(button, success);
+        case 'copy-json':
+          void logger.copyLogs({ format: 'json' }).then((success) => {
+            showCopyFeedback(button, success);
+          });
           break;
-        }
-        case 'copy-text': {
-          const success = await logger.copyLogs({ format: 'text' });
-          showCopyFeedback(button, success);
+        case 'copy-text':
+          void logger.copyLogs({ format: 'text' }).then((success) => {
+            showCopyFeedback(button, success);
+          });
           break;
-        }
       }
     });
   });
