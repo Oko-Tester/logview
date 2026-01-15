@@ -551,6 +551,7 @@ function generatePopoutHtml(): string {
       <button class="btn btn-copy" id="btn-copy-json" title="Copy as JSON">JSON</button>
       <button class="btn btn-copy" id="btn-copy-text" title="Copy as Text">TXT</button>
       <button class="btn btn-timeline" id="btn-timeline" title="Toggle Timeline">Timeline</button>
+      <button class="btn btn-timeline" id="btn-timeline-pause" title="Pause/Resume Timeline" style="display: none;">⏸</button>
       <button class="btn" id="btn-clear">Clear</button>
     </div>
   </div>
@@ -575,6 +576,7 @@ function generatePopoutHtml(): string {
       </div>
       <input type="text" class="filter-input" id="filter-search" placeholder="Search logs..." data-filter="search">
       <input type="text" class="filter-input" id="filter-file" placeholder="Filter by file..." data-filter="file" style="max-width: 120px;">
+      <button class="filter-clear-btn" title="Clear all filters">✕</button>
     </div>
     <div class="filter-status" id="filter-status" style="display: none;"></div>
   </div>
@@ -612,6 +614,7 @@ function generatePopoutHtml(): string {
     const btnCopyJson = document.getElementById('btn-copy-json');
     const btnCopyText = document.getElementById('btn-copy-text');
     const btnTimeline = document.getElementById('btn-timeline');
+    const btnTimelinePause = document.getElementById('btn-timeline-pause');
     const timelineContainer = document.getElementById('timeline-container');
     const timelineCanvas = document.getElementById('timeline-canvas');
     const timelineTooltip = document.getElementById('timeline-tooltip');
@@ -621,6 +624,7 @@ function generatePopoutHtml(): string {
     let timelineVisible = false;
     let timelineWindow = 30000; // 30 seconds default
     let timelineInterval = null;
+    let timelinePaused = false;
     const LEVEL_COLORS = {
       debug: '#6e6e6e',
       info: '#3794ff',
@@ -630,6 +634,7 @@ function generatePopoutHtml(): string {
     const filterSearch = document.getElementById('filter-search');
     const filterFile = document.getElementById('filter-file');
     const filterStatus = document.getElementById('filter-status');
+    const filterClearBtn = document.querySelector('.filter-clear-btn');
 
     // Connect to broadcast channel
     function connect() {
@@ -885,12 +890,14 @@ function generatePopoutHtml(): string {
 
     // Export logs as JSON
     function exportLogsJson() {
-      return JSON.stringify(logs, null, 2);
+      const logsToExport = getFilteredLogs();
+      return JSON.stringify(logsToExport, null, 2);
     }
 
     // Export logs as text
     function exportLogsText() {
-      return logs.map(log => {
+      const logsToExport = getFilteredLogs();
+      return logsToExport.map(log => {
         const time = new Date(log.timestamp).toISOString();
         const level = log.level.toUpperCase().padEnd(5);
         const source = log.source.file + ':' + log.source.line;
@@ -972,17 +979,53 @@ function generatePopoutHtml(): string {
       renderAllLogs();
     });
 
+    // Filter: Clear button
+    if (filterClearBtn) {
+      filterClearBtn.addEventListener('click', () => {
+        // Reset all filters
+        filter.levels = new Set(['debug', 'info', 'warn', 'error']);
+        filter.search = '';
+        filter.file = '';
+
+        // Reset UI elements
+        filterSearch.value = '';
+        filterFile.value = '';
+        document.querySelectorAll('.filter-level-btn').forEach(btn => {
+          btn.classList.add('active');
+        });
+
+        // Re-render
+        renderAllLogs();
+      });
+    }
+
     // Timeline: Toggle button
     btnTimeline.addEventListener('click', () => {
       timelineVisible = !timelineVisible;
       timelineContainer.style.display = timelineVisible ? 'block' : 'none';
       btnTimeline.classList.toggle('active', timelineVisible);
+      btnTimelinePause.style.display = timelineVisible ? 'inline-block' : 'none';
       if (timelineVisible) {
+        timelinePaused = false;
+        btnTimelinePause.textContent = '⏸';
+        btnTimelinePause.classList.remove('active');
         resizeCanvas();
         drawTimeline();
         startTimelineRefresh();
       } else {
         stopTimelineRefresh();
+      }
+    });
+
+    // Timeline: Pause/Resume button
+    btnTimelinePause.addEventListener('click', () => {
+      timelinePaused = !timelinePaused;
+      btnTimelinePause.textContent = timelinePaused ? '▶' : '⏸';
+      btnTimelinePause.classList.toggle('active', timelinePaused);
+      if (timelinePaused) {
+        stopTimelineRefresh();
+      } else {
+        startTimelineRefresh();
       }
     });
 
