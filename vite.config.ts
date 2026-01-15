@@ -27,7 +27,7 @@ export default defineConfig({
         preserveModules: false,
       },
     },
-    sourcemap: true,
+    sourcemap: false,
     minify: 'esbuild',
     target: 'es2020',
   },
