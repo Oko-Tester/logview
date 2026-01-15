@@ -22,13 +22,13 @@ A feature-rich, browser-based dev logger with a beautiful debug UI. Zero depende
 ## Installation
 
 ```bash
-npm install devlogger
+npm install devlog-ui
 ```
 
 ## Quick Start
 
 ```typescript
-import { logger, DevLoggerUI } from "devlogger";
+import { logger, DevLoggerUI } from "devlog-ui";
 
 // Initialize the UI (once, at app start)
 DevLoggerUI.init();
@@ -240,7 +240,7 @@ import {
   createDiffResult,
   hasChanges,
   formatValue,
-} from "devlogger";
+} from "devlog-ui";
 
 // Low-level diff computation
 const changes = computeDiff(oldObj, newObj);
@@ -265,7 +265,7 @@ formatValue([1, 2, 3, 4, 5]); // "[5 items]"
 Automatically track Fetch and XHR requests with spans:
 
 ```typescript
-import { NetworkCapture } from "devlogger";
+import { NetworkCapture } from "devlog-ui";
 
 // Install at app start
 NetworkCapture.install();
@@ -316,7 +316,7 @@ Network requests create spans automatically:
 Visualize logs and spans on a canvas-based timeline:
 
 ```typescript
-import { createTimeline, Timeline } from "devlogger";
+import { createTimeline, Timeline } from "devlog-ui";
 
 // Create timeline in a container
 const timeline = createTimeline({
@@ -387,7 +387,7 @@ Press `Ctrl+Shift+L` to toggle the debug panel.
 Automatically capture uncaught errors and unhandled promise rejections:
 
 ```typescript
-import { ErrorCapture } from "devlogger";
+import { ErrorCapture } from "devlog-ui";
 
 // Install at app start
 ErrorCapture.install();
@@ -417,7 +417,7 @@ All captured errors are automatically logged as `error` level with full stack tr
 Persist logs to survive page crashes and enable crash recovery:
 
 ```typescript
-import { LogPersistence, logger } from "devlogger";
+import { LogPersistence, logger } from "devlog-ui";
 
 // Enable persistence at app start
 LogPersistence.enable();
@@ -452,7 +452,7 @@ Logs are persisted automatically after each new log (debounced). On page unload,
 
 ## Production Build
 
-For production, import from `devlogger/noop` to completely eliminate logging code via tree-shaking:
+For production, import from `devlog-ui/noop` to completely eliminate logging code via tree-shaking:
 
 ### Vite
 
@@ -461,8 +461,8 @@ For production, import from `devlogger/noop` to completely eliminate logging cod
 export default defineConfig({
   resolve: {
     alias: {
-      devlogger:
-        process.env.NODE_ENV === "production" ? "devlogger/noop" : "devlogger",
+      devlog-ui:
+        process.env.NODE_ENV === "production" ? "devlog-ui/noop" : "devlog-ui",
     },
   },
 });
@@ -475,8 +475,8 @@ export default defineConfig({
 module.exports = {
   resolve: {
     alias: {
-      devlogger:
-        process.env.NODE_ENV === "production" ? "devlogger/noop" : "devlogger",
+      devlog-ui:
+        process.env.NODE_ENV === "production" ? "devlog-ui/noop" : "devlog-ui",
     },
   },
 };
@@ -488,8 +488,8 @@ module.exports = {
 // build.js
 require("esbuild").build({
   alias: {
-    devlogger:
-      process.env.NODE_ENV === "production" ? "devlogger/noop" : "devlogger",
+    devlog-ui:
+      process.env.NODE_ENV === "production" ? "devlog-ui/noop" : "devlog-ui",
   },
 });
 ```
@@ -515,7 +515,7 @@ import type {
   DiffChangeType,
   NetworkCaptureConfig,
   TimelineConfig,
-} from "devlogger";
+} from "devlog-ui";
 
 type LogLevel = "debug" | "info" | "warn" | "error";
 type SpanStatus = "running" | "success" | "error";
