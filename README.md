@@ -14,6 +14,9 @@ A lightweight, browser-based dev logger with a beautiful debug UI. Zero dependen
 - 🎯 **Spans & Grouping** - Group related logs with timing and nested spans
 - 🏷️ **Context & Tags** - Attach requestId, userId, or any context to logs
 - 📤 **Export & Share** - Copy logs as JSON or text for bug reports
+- 🔄 **Visual Diff** - Compare objects with color-coded change visualization
+- 🌐 **Network Capture** - Automatic Fetch/XHR request tracking with spans
+- 📊 **Timeline View** - Canvas-based visualization of logs and spans over time
 - 🌐 **Framework-Agnostic** - Works with React, Vue, Svelte, vanilla JS, or any framework
 
 ## Installation
@@ -204,6 +207,134 @@ if (success) {
 }
 ```
 
+### Visual Diff
+
+Compare objects and log changes with color-coded visualization:
+
+```typescript
+// Log a diff with automatic change detection
+const oldConfig = { theme: 'light', fontSize: 14 };
+const newConfig = { theme: 'dark', fontSize: 14, language: 'en' };
+
+const diff = logger.diff('Config updated', oldConfig, newConfig);
+// Logs with visual diff: +1 added, ~1 changed
+
+console.log(diff.summary);
+// { added: 1, removed: 0, changed: 1, unchanged: 1 }
+
+// Specify log level
+logger.diff('Breaking change', oldApi, newApi, 'warn');
+
+// Compute diff without logging
+const result = logger.computeDiff(objA, objB);
+if (result.summary.changed > 0) {
+  logger.warn('Objects differ!', result.changes);
+}
+```
+
+#### Diff Utilities
+
+```typescript
+import { computeDiff, createDiffResult, hasChanges, formatValue } from 'devlogger';
+
+// Low-level diff computation
+const changes = computeDiff(oldObj, newObj);
+// Returns array of { path, type, oldValue, newValue }
+
+// Full diff result with summary
+const result = createDiffResult(oldObj, newObj);
+// { changes: [...], summary: { added, removed, changed, unchanged } }
+
+// Quick check for any changes
+if (hasChanges(result)) {
+  console.log('Objects are different');
+}
+
+// Format values for display
+formatValue({ a: 1 }); // "{a: 1}"
+formatValue([1, 2, 3, 4, 5]); // "[5 items]"
+```
+
+### Network Capture
+
+Automatically track Fetch and XHR requests with spans:
+
+```typescript
+import { NetworkCapture } from 'devlogger';
+
+// Install at app start
+NetworkCapture.install();
+
+// All fetch calls are now automatically logged
+await fetch('/api/users'); // Creates a span with timing
+
+// With configuration
+NetworkCapture.install({
+  captureFetch: true,       // Hook into fetch (default: true)
+  captureXHR: true,         // Hook into XHR (default: true)
+  includeHeaders: true,     // Log request headers (default: false)
+  includeBody: true,        // Log request body (default: false)
+  includeResponse: true,    // Log response body (default: false)
+  maxResponseLength: 5000,  // Max response chars to capture
+  ignorePatterns: [         // URLs to ignore
+    '/analytics',
+    /\.hot-update\./,
+    /sockjs/,
+  ],
+  context: { service: 'api' } // Context for all network logs
+});
+
+// Add ignore patterns dynamically
+NetworkCapture.addIgnorePattern('/health');
+
+// Check status
+NetworkCapture.isActive();
+NetworkCapture.getConfig();
+
+// Uninstall and restore original fetch/XHR
+NetworkCapture.uninstall();
+```
+
+Network requests create spans automatically:
+```
+[info] GET /api/users
+  └─ span: "GET /api/users" (234ms, success)
+     ├─ status: 200
+     ├─ response: { users: [...] }
+     └─ headers: { content-type: "application/json" }
+```
+
+### Timeline
+
+Visualize logs and spans on a canvas-based timeline:
+
+```typescript
+import { createTimeline, Timeline } from 'devlogger';
+
+// Create timeline in a container
+const timeline = createTimeline({
+  container: '#timeline-container', // CSS selector or HTMLElement
+  timeWindow: 60000,                // Show last 60 seconds
+  refreshInterval: 100,             // Refresh rate in ms
+  showSpans: true,                  // Display span bars
+  showLogs: true,                   // Display log markers
+  height: 200,                      // Canvas height in pixels
+});
+
+// Update time window
+timeline.setTimeWindow(30000); // Show last 30 seconds
+
+// Cleanup when done
+timeline.destroy();
+```
+
+Timeline features:
+- Color-coded log markers (debug/info/warn/error)
+- Span bars with duration and nesting
+- Hover tooltips with details
+- Auto-scroll to follow new logs
+- Time axis with tick marks
+
 ### DevLoggerUI
 
 The UI overlay provides a visual interface for viewing logs:
@@ -365,7 +496,8 @@ The `noop` export provides the same API but all functions are no-ops, resulting 
 ```typescript
 import type {
   LogEvent, LogLevel, LoggerConfig, Source, FilterState,
-  ErrorCaptureConfig, LogContext, SpanEvent, SpanStatus, ExportOptions
+  ErrorCaptureConfig, LogContext, SpanEvent, SpanStatus, ExportOptions,
+  DiffEntry, DiffResult, DiffChangeType, NetworkCaptureConfig, TimelineConfig
 } from 'devlogger';
 
 type LogLevel = 'debug' | 'info' | 'warn' | 'error';
@@ -435,6 +567,46 @@ interface PersistenceConfig {
   storage?: 'session' | 'local';
   maxPersisted?: number;
   debounceMs?: number;
+}
+
+// Diff types
+type DiffChangeType = 'added' | 'removed' | 'changed' | 'unchanged';
+
+interface DiffEntry {
+  path: string;           // e.g., "user.profile.name"
+  type: DiffChangeType;
+  oldValue?: unknown;
+  newValue?: unknown;
+}
+
+interface DiffResult {
+  changes: DiffEntry[];
+  summary: {
+    added: number;
+    removed: number;
+    changed: number;
+    unchanged: number;
+  };
+}
+
+interface NetworkCaptureConfig {
+  captureFetch?: boolean;
+  captureXHR?: boolean;
+  includeHeaders?: boolean;
+  includeBody?: boolean;
+  includeResponse?: boolean;
+  maxResponseLength?: number;
+  ignorePatterns?: (string | RegExp)[];
+  context?: LogContext;
+}
+
+interface TimelineConfig {
+  container: HTMLElement | string;
+  timeWindow?: number;
+  refreshInterval?: number;
+  showSpans?: boolean;
+  showLogs?: boolean;
+  height?: number;
 }
 ```
 
