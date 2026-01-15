@@ -1,4 +1,4 @@
-# DevLogger
+# LogView
 
 A lightweight, browser-based dev logger with a beautiful debug UI. Zero dependencies, framework-agnostic, production-safe.
 
