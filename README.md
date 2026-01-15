@@ -25,6 +25,10 @@ A feature-rich, browser-based dev logger with a beautiful debug UI. Zero depende
 npm install devlog-ui
 ```
 
+## Demo
+
+https://devlog-ui.okotester.de/
+
 ## Quick Start
 
 ```typescript
