@@ -1,6 +1,6 @@
 {
   "name": "devlog-ui",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Lightweight browser dev-logger with UI overlay and pop-out window. Zero overhead in production.",
   "type": "module",
   "main": "./dist/index.cjs",
