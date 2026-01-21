@@ -17,6 +17,7 @@ A feature-rich, browser-based dev logger with a beautiful debug UI. Zero depende
 - 🔄 **Visual Diff** - Compare objects with color-coded change visualization
 - 🌐 **Network Capture** - Automatic Fetch/XHR request tracking with spans
 - 📊 **Timeline View** - Canvas-based visualization of logs and spans over time
+- 🧠 **Resource Monitor** - JS heap usage panel (Chrome-only, graceful fallback)
 - 🌐 **Framework-Agnostic** - Works with React, Vue, Svelte, vanilla JS, or any framework
 
 ## Installation
@@ -384,6 +385,9 @@ DevLoggerUI.destroy();
 DevLoggerUI.isVisible();
 DevLoggerUI.isInitialized();
 ```
+
+The overlay and pop-out also include a Resource Monitor panel that shows JS heap usage
+(Chrome-only; other browsers show an "unsupported" notice).
 
 ### Keyboard Shortcut
 
