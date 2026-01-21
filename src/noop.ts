@@ -63,7 +63,15 @@ export const logger = {
   getLogs: () => [] as const,
   subscribe: () => noop,
   getSessionId: () => '',
-  getConfig: () => ({ maxLogs: 1000, persist: false, minLevel: 'debug' as const, enabled: false }),
+  getConfig: () => ({
+    maxLogs: 1000,
+    persist: false,
+    minLevel: 'debug' as const,
+    enabled: false,
+    shortcutAction: 'toggle' as const,
+    showToggleButton: true,
+    spanCollapsed: false,
+  }),
   isEnabled: () => false,
   // Span API
   span: () => noopSpan,

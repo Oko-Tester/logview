@@ -96,6 +96,12 @@ export interface LoggerConfig {
   minLevel?: LogLevel;
   /** Enable/disable logging entirely (default: true) */
   enabled?: boolean;
+  /** Ctrl+Shift+L action: toggle overlay or open pop-out (default: 'toggle') */
+  shortcutAction?: 'toggle' | 'popout';
+  /** Show the floating toggle button in the UI (default: true) */
+  showToggleButton?: boolean;
+  /** Collapse span groups by default in the UI (default: false) */
+  spanCollapsed?: boolean;
 }
 
 /**

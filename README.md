@@ -71,6 +71,9 @@ logger.configure({
   maxLogs: 1000, // Max logs in memory (FIFO rotation)
   minLevel: "debug", // Minimum level: 'debug' | 'info' | 'warn' | 'error'
   enabled: true, // Enable/disable logging
+  shortcutAction: "toggle", // Ctrl+Shift+L: 'toggle' | 'popout'
+  showToggleButton: true, // Show the floating toggle button
+  spanCollapsed: false, // Collapse span groups by default
 });
 ```
 
@@ -561,6 +564,9 @@ interface LoggerConfig {
   maxLogs?: number;
   minLevel?: LogLevel;
   enabled?: boolean;
+  shortcutAction?: "toggle" | "popout";
+  showToggleButton?: boolean;
+  spanCollapsed?: boolean;
 }
 
 interface ExportOptions {

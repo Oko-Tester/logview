@@ -13,7 +13,7 @@
  */
 
 import { logger } from '../core/logger';
-import type { LogEvent, LogLevel, Unsubscribe } from '../core/types';
+import type { LogEvent, LogLevel, SpanEvent, Unsubscribe } from '../core/types';
 import { STYLES } from './styles';
 import { createLogEntry, createEmptyState } from './log-entry';
 import { channel, type ChannelMessage } from '../channel/broadcast';
@@ -28,6 +28,28 @@ import {
 
 /** Keyboard shortcut for toggle */
 const SHORTCUT = { key: 'l', ctrlKey: true, shiftKey: true };
+
+type ShortcutAction = 'toggle' | 'popout';
+
+function getShortcutAction(): ShortcutAction {
+  const action = logger.getConfig().shortcutAction;
+  return action === 'popout' ? 'popout' : 'toggle';
+}
+
+function getShortcutHint(): string {
+  return getShortcutAction() === 'popout' ? 'Ctrl+Shift+L to open pop-out' : 'Ctrl+Shift+L to toggle';
+}
+
+function escapeHtml(str: string): string {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function formatSpanDuration(span: SpanEvent): string {
+  if (span.duration === undefined) return 'running';
+  return `${Math.round(span.duration)}ms`;
+}
 
 /**
  * Show feedback after copy action
@@ -54,6 +76,7 @@ interface UIState {
   toggleBtn: HTMLElement | null;
   badge: HTMLElement | null;
   unsubscribe: Unsubscribe | null;
+  spanUnsubscribe: Unsubscribe | null;
   channelUnsubscribe: (() => void) | null;
   filter: FilterState;
 }
@@ -69,6 +92,7 @@ const state: UIState = {
   toggleBtn: null,
   badge: null,
   unsubscribe: null,
+  spanUnsubscribe: null,
   channelUnsubscribe: null,
   filter: createDefaultFilterState(),
 };
@@ -83,13 +107,15 @@ function createOverlayDOM(shadow: ShadowRoot): void {
   shadow.appendChild(style);
 
   // Toggle button (floating)
-  const toggleBtn = document.createElement('button');
-  toggleBtn.className = 'devlogger-toggle';
-  toggleBtn.innerHTML = '📋';
-  toggleBtn.title = 'Toggle DevLogger (Ctrl+Shift+L)';
-  toggleBtn.addEventListener('click', () => DevLoggerUI.toggle());
-  shadow.appendChild(toggleBtn);
-  state.toggleBtn = toggleBtn;
+  if (logger.getConfig().showToggleButton) {
+    const toggleBtn = document.createElement('button');
+    toggleBtn.className = 'devlogger-toggle';
+    toggleBtn.innerHTML = '📋';
+    toggleBtn.title = getShortcutAction() === 'popout' ? 'Toggle DevLogger' : 'Toggle DevLogger (Ctrl+Shift+L)';
+    toggleBtn.addEventListener('click', () => DevLoggerUI.toggle());
+    shadow.appendChild(toggleBtn);
+    state.toggleBtn = toggleBtn;
+  }
 
   // Main container
   const container = document.createElement('div');
@@ -109,14 +135,14 @@ function createOverlayDOM(shadow: ShadowRoot): void {
         <button class="devlogger-btn" data-action="copy-text" title="Copy as Text">TXT</button>
         <button class="devlogger-btn" data-action="clear" title="Clear logs">Clear</button>
         <button class="devlogger-btn devlogger-btn-primary" data-action="popout" title="Open in new window">Pop-out</button>
-        <button class="devlogger-btn" data-action="close" title="Close (Ctrl+Shift+L)">✕</button>
+        <button class="devlogger-btn" data-action="close" title="Close">✕</button>
       </div>
     </div>
     <div class="filter-bar-container"></div>
     <div class="devlogger-logs"></div>
     <div class="devlogger-footer">
       <span class="devlogger-log-count">${logs.length} logs</span>
-      <span class="devlogger-shortcut">Ctrl+Shift+L to toggle</span>
+      <span class="devlogger-shortcut">${getShortcutHint()}</span>
     </div>
   `;
 
@@ -254,8 +280,40 @@ function renderLogs(): void {
     state.logsList.appendChild(noResults);
   } else {
     const fragment = document.createDocumentFragment();
+    const spanGroups = new Map<string, HTMLElement>();
+    const spanLogContainers = new Map<string, HTMLElement>();
+    const spanLogCounts = new Map<string, number>();
     for (const log of filteredLogs) {
-      fragment.appendChild(createLogEntry(log));
+      if (!log.spanId) {
+        fragment.appendChild(createLogEntry(log));
+        continue;
+      }
+
+      let group = spanGroups.get(log.spanId);
+      if (!group) {
+        const spanEvent = logger.getSpan(log.spanId);
+        group = createSpanGroup(log.spanId, spanEvent);
+        spanGroups.set(log.spanId, group);
+        const container = group.querySelector('.span-logs');
+        if (container) {
+          spanLogContainers.set(log.spanId, container as HTMLElement);
+        }
+        fragment.appendChild(group);
+      }
+
+      const spanLogs = spanLogContainers.get(log.spanId);
+      if (spanLogs) {
+        spanLogs.appendChild(createLogEntry(log));
+      }
+
+      spanLogCounts.set(log.spanId, (spanLogCounts.get(log.spanId) ?? 0) + 1);
+    }
+    for (const [spanId, count] of spanLogCounts) {
+      const group = spanGroups.get(spanId);
+      const countEl = group?.querySelector('.span-count');
+      if (countEl) {
+        countEl.textContent = `${count} log${count === 1 ? '' : 's'}`;
+      }
     }
     state.logsList.appendChild(fragment);
   }
@@ -282,8 +340,21 @@ function addLogEntry(log: LogEvent): void {
     if (empty) {
       empty.remove();
     }
-
-    state.logsList.appendChild(createLogEntry(log));
+    if (log.spanId) {
+      let group = state.logsList.querySelector(`.span-group[data-span-id="${log.spanId}"]`) as HTMLElement | null;
+      if (!group) {
+        const spanEvent = logger.getSpan(log.spanId);
+        group = createSpanGroup(log.spanId, spanEvent);
+        state.logsList.appendChild(group);
+      }
+      const spanLogs = group.querySelector('.span-logs') as HTMLElement | null;
+      if (spanLogs) {
+        spanLogs.appendChild(createLogEntry(log));
+        updateSpanGroupCount(group, spanLogs);
+      }
+    } else {
+      state.logsList.appendChild(createLogEntry(log));
+    }
   }
 
   updateBadge(filteredLogs.length, logs.length);
@@ -367,6 +438,80 @@ function scrollToBottom(): void {
   }
 }
 
+function updateSpanGroupCount(group: HTMLElement, spanLogs: HTMLElement): void {
+  const countEl = group.querySelector('.span-count');
+  if (countEl) {
+    const count = spanLogs.querySelectorAll('.log-entry').length;
+    countEl.textContent = `${count} log${count === 1 ? '' : 's'}`;
+  }
+}
+
+function createSpanGroup(spanId: string, span: SpanEvent | undefined): HTMLElement {
+  const group = document.createElement('div');
+  group.className = 'span-group';
+  group.dataset.spanId = spanId;
+
+  const name = span?.name ?? 'Span';
+  const status = span?.status ?? 'running';
+  const duration = span ? formatSpanDuration(span) : 'running';
+
+  const header = document.createElement('div');
+  header.className = 'span-header';
+  header.innerHTML = `
+    <button class="span-toggle" type="button" aria-label="Toggle span logs"></button>
+    <span class="span-title">${escapeHtml(name)}</span>
+    <span class="span-status span-status-${status}">${status}</span>
+    <span class="span-duration">${duration}</span>
+    <span class="span-count">0 logs</span>
+  `;
+
+  const logs = document.createElement('div');
+  logs.className = 'span-logs';
+
+  if (logger.getConfig().spanCollapsed) {
+    group.classList.add('collapsed');
+  }
+
+  const toggle = header.querySelector('.span-toggle');
+  const toggleHandler = () => {
+    group.classList.toggle('collapsed');
+  };
+  header.addEventListener('click', (e) => {
+    const target = e.target as HTMLElement | null;
+    if (target?.closest('.span-toggle')) {
+      return;
+    }
+    toggleHandler();
+  });
+  toggle?.addEventListener('click', () => toggleHandler());
+
+  group.appendChild(header);
+  group.appendChild(logs);
+
+  return group;
+}
+
+function updateSpanHeader(span: SpanEvent): void {
+  const group = state.logsList?.querySelector(`.span-group[data-span-id="${span.id}"]`) as HTMLElement | null;
+  if (!group) return;
+
+  const titleEl = group.querySelector('.span-title');
+  if (titleEl) {
+    titleEl.textContent = span.name;
+  }
+
+  const statusEl = group.querySelector('.span-status');
+  if (statusEl) {
+    statusEl.textContent = span.status;
+    statusEl.className = `span-status span-status-${span.status}`;
+  }
+
+  const durationEl = group.querySelector('.span-duration');
+  if (durationEl) {
+    durationEl.textContent = formatSpanDuration(span);
+  }
+}
+
 /**
  * Handle keyboard shortcuts
  */
@@ -377,7 +522,11 @@ function handleKeydown(e: KeyboardEvent): void {
     e.shiftKey === SHORTCUT.shiftKey
   ) {
     e.preventDefault();
-    DevLoggerUI.toggle();
+    if (getShortcutAction() === 'popout') {
+      DevLoggerUI.popout();
+    } else {
+      DevLoggerUI.toggle();
+    }
   }
 }
 
@@ -431,6 +580,9 @@ export const DevLoggerUI = {
       state.unsubscribe = logger.subscribe((log) => {
         addLogEntry(log);
         channel.sendLog(log);
+      });
+      state.spanUnsubscribe = logger.subscribeSpans((span) => {
+        updateSpanHeader(span);
       });
 
       state.channelUnsubscribe = channel.subscribe(handleChannelMessage);
@@ -568,6 +720,11 @@ export const DevLoggerUI = {
         state.unsubscribe = null;
       }
 
+      if (state.spanUnsubscribe) {
+        state.spanUnsubscribe();
+        state.spanUnsubscribe = null;
+      }
+
       if (state.channelUnsubscribe) {
         state.channelUnsubscribe();
         state.channelUnsubscribe = null;
@@ -588,6 +745,7 @@ export const DevLoggerUI = {
       state.filterBar = null;
       state.toggleBtn = null;
       state.badge = null;
+      state.spanUnsubscribe = null;
       state.filter = createDefaultFilterState();
     } catch {
       // Silent fail

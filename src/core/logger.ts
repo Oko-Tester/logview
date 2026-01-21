@@ -91,6 +91,9 @@ const DEFAULT_CONFIG: Required<LoggerConfig> = {
   persist: false,
   minLevel: 'debug',
   enabled: checkEnvEnabled(),
+  shortcutAction: 'toggle',
+  showToggleButton: true,
+  spanCollapsed: false,
 };
 
 /**
