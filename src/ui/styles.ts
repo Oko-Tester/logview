@@ -124,6 +124,11 @@ export const STYLES = `
     color: var(--text-primary);
   }
 
+  .devlogger-btn.active {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
   .devlogger-btn-primary {
     background: ${COLORS.buttonBg};
     color: white;
@@ -432,6 +437,45 @@ export const STYLES = `
 
   .devlogger-shortcut {
     opacity: 0.7;
+  }
+
+  /* Resource Monitor */
+  .resource-container {
+    background: var(--bg-secondary);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    display: none;
+  }
+
+  .resource-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+    color: var(--text-secondary);
+    font-size: 11px;
+  }
+
+  .resource-metrics {
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 6px 12px;
+    font-size: 11px;
+  }
+
+  .resource-label {
+    color: var(--text-muted);
+  }
+
+  .resource-value {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  .resource-note {
+    margin-top: 6px;
+    color: var(--text-muted);
+    font-size: 11px;
   }
 
   /* Filter Bar */

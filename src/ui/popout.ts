@@ -252,6 +252,45 @@ function generatePopoutHtml(): string {
       color: white;
     }
 
+    /* Resource Monitor */
+    .resource-container {
+      background: var(--bg-secondary);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 12px;
+      display: none;
+    }
+
+    .resource-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      color: var(--text-secondary);
+      font-size: 11px;
+    }
+
+    .resource-metrics {
+      display: grid;
+      grid-template-columns: 1fr auto;
+      gap: 6px 12px;
+      font-size: 11px;
+    }
+
+    .resource-label {
+      color: var(--text-muted);
+    }
+
+    .resource-value {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    .resource-note {
+      margin-top: 6px;
+      color: var(--text-muted);
+      font-size: 11px;
+    }
+
     /* Timeline Container */
     .timeline-container {
       position: relative;
@@ -552,6 +591,7 @@ function generatePopoutHtml(): string {
       <button class="btn btn-copy" id="btn-copy-text" title="Copy as Text">TXT</button>
       <button class="btn btn-timeline" id="btn-timeline" title="Toggle Timeline">Timeline</button>
       <button class="btn btn-timeline" id="btn-timeline-pause" title="Pause/Resume Timeline" style="display: none;">⏸</button>
+      <button class="btn btn-timeline" id="btn-resources" title="Toggle Resource Monitor">Resources</button>
       <button class="btn" id="btn-clear">Clear</button>
     </div>
   </div>
@@ -563,6 +603,24 @@ function generatePopoutHtml(): string {
       <button class="timeline-btn" data-window="10000">10s</button>
       <button class="timeline-btn active" data-window="30000">30s</button>
       <button class="timeline-btn" data-window="60000">60s</button>
+    </div>
+  </div>
+
+  <div class="resource-container" id="resource-container">
+    <div class="resource-header">
+      <span>Resource Monitor</span>
+      <span id="resource-status"></span>
+    </div>
+    <div class="resource-metrics" id="resource-metrics">
+      <span class="resource-label">JS Heap Used</span>
+      <span class="resource-value" id="resource-heap-used">-</span>
+      <span class="resource-label">JS Heap Total</span>
+      <span class="resource-value" id="resource-heap-total">-</span>
+      <span class="resource-label">JS Heap Limit</span>
+      <span class="resource-value" id="resource-heap-limit">-</span>
+    </div>
+    <div class="resource-note" id="resource-note" style="display: none;">
+      Resource metrics are available only in Chrome.
     </div>
   </div>
 
@@ -615,9 +673,17 @@ function generatePopoutHtml(): string {
     const btnCopyText = document.getElementById('btn-copy-text');
     const btnTimeline = document.getElementById('btn-timeline');
     const btnTimelinePause = document.getElementById('btn-timeline-pause');
+    const btnResources = document.getElementById('btn-resources');
     const timelineContainer = document.getElementById('timeline-container');
     const timelineCanvas = document.getElementById('timeline-canvas');
     const timelineTooltip = document.getElementById('timeline-tooltip');
+    const resourceContainer = document.getElementById('resource-container');
+    const resourceStatus = document.getElementById('resource-status');
+    const resourceMetrics = document.getElementById('resource-metrics');
+    const resourceNote = document.getElementById('resource-note');
+    const resourceHeapUsed = document.getElementById('resource-heap-used');
+    const resourceHeapTotal = document.getElementById('resource-heap-total');
+    const resourceHeapLimit = document.getElementById('resource-heap-limit');
     const filterBar = document.getElementById('filter-bar');
 
     // Timeline state
@@ -625,6 +691,9 @@ function generatePopoutHtml(): string {
     let timelineWindow = 30000; // 30 seconds default
     let timelineInterval = null;
     let timelinePaused = false;
+    let resourceVisible = false;
+    let resourceInterval = null;
+    const resourceSupported = typeof performance !== 'undefined' && performance && 'memory' in performance;
     const LEVEL_COLORS = {
       debug: '#6e6e6e',
       info: '#3794ff',
@@ -757,6 +826,47 @@ function generatePopoutHtml(): string {
         footerCount.textContent = filteredLogs.length + ' of ' + logs.length + ' logs';
       } else {
         footerCount.textContent = logs.length + ' logs';
+      }
+    }
+
+    function formatBytes(bytes) {
+      if (typeof bytes !== 'number' || !isFinite(bytes)) return '-';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
+
+    function updateResourceSupportUI() {
+      if (!resourceStatus || !resourceMetrics || !resourceNote) return;
+      if (resourceSupported) {
+        resourceStatus.textContent = 'Chrome API';
+        resourceMetrics.style.display = 'grid';
+        resourceNote.style.display = 'none';
+      } else {
+        resourceStatus.textContent = 'Unsupported';
+        resourceMetrics.style.display = 'none';
+        resourceNote.style.display = 'block';
+      }
+    }
+
+    function updateResourceMetrics() {
+      if (!resourceSupported || !resourceHeapUsed || !resourceHeapTotal || !resourceHeapLimit) {
+        return;
+      }
+      const memory = performance.memory;
+      resourceHeapUsed.textContent = formatBytes(memory.usedJSHeapSize);
+      resourceHeapTotal.textContent = formatBytes(memory.totalJSHeapSize);
+      resourceHeapLimit.textContent = formatBytes(memory.jsHeapSizeLimit);
+    }
+
+    function startResourceUpdates() {
+      if (resourceInterval || !resourceSupported) return;
+      updateResourceMetrics();
+      resourceInterval = setInterval(updateResourceMetrics, 1000);
+    }
+
+    function stopResourceUpdates() {
+      if (resourceInterval) {
+        clearInterval(resourceInterval);
+        resourceInterval = null;
       }
     }
 
@@ -1026,6 +1136,18 @@ function generatePopoutHtml(): string {
         stopTimelineRefresh();
       } else {
         startTimelineRefresh();
+      }
+    });
+
+    btnResources.addEventListener('click', () => {
+      resourceVisible = !resourceVisible;
+      btnResources.classList.toggle('active', resourceVisible);
+      resourceContainer.style.display = resourceVisible ? 'block' : 'none';
+      if (resourceVisible) {
+        updateResourceSupportUI();
+        startResourceUpdates();
+      } else {
+        stopResourceUpdates();
       }
     });
 

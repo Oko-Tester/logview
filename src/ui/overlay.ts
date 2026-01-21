@@ -75,6 +75,16 @@ interface UIState {
   filterBar: HTMLElement | null;
   toggleBtn: HTMLElement | null;
   badge: HTMLElement | null;
+  resourceContainer: HTMLElement | null;
+  resourceStatus: HTMLElement | null;
+  resourceMetrics: HTMLElement | null;
+  resourceNote: HTMLElement | null;
+  resourceHeapUsed: HTMLElement | null;
+  resourceHeapTotal: HTMLElement | null;
+  resourceHeapLimit: HTMLElement | null;
+  resourceVisible: boolean;
+  resourceInterval: number | null;
+  resourceSupported: boolean;
   unsubscribe: Unsubscribe | null;
   spanUnsubscribe: Unsubscribe | null;
   channelUnsubscribe: (() => void) | null;
@@ -91,6 +101,16 @@ const state: UIState = {
   filterBar: null,
   toggleBtn: null,
   badge: null,
+  resourceContainer: null,
+  resourceStatus: null,
+  resourceMetrics: null,
+  resourceNote: null,
+  resourceHeapUsed: null,
+  resourceHeapTotal: null,
+  resourceHeapLimit: null,
+  resourceVisible: false,
+  resourceInterval: null,
+  resourceSupported: typeof performance !== 'undefined' && 'memory' in performance,
   unsubscribe: null,
   spanUnsubscribe: null,
   channelUnsubscribe: null,
@@ -134,8 +154,26 @@ function createOverlayDOM(shadow: ShadowRoot): void {
         <button class="devlogger-btn" data-action="copy-json" title="Copy as JSON">JSON</button>
         <button class="devlogger-btn" data-action="copy-text" title="Copy as Text">TXT</button>
         <button class="devlogger-btn" data-action="clear" title="Clear logs">Clear</button>
+        <button class="devlogger-btn" data-action="resources" title="Toggle Resource Monitor">Resources</button>
         <button class="devlogger-btn devlogger-btn-primary" data-action="popout" title="Open in new window">Pop-out</button>
         <button class="devlogger-btn" data-action="close" title="Close">✕</button>
+      </div>
+    </div>
+    <div class="resource-container" id="devlogger-resources">
+      <div class="resource-header">
+        <span>Resource Monitor</span>
+        <span class="resource-status" id="devlogger-resources-status"></span>
+      </div>
+      <div class="resource-metrics" id="devlogger-resources-metrics">
+        <span class="resource-label">JS Heap Used</span>
+        <span class="resource-value" id="devlogger-heap-used">-</span>
+        <span class="resource-label">JS Heap Total</span>
+        <span class="resource-value" id="devlogger-heap-total">-</span>
+        <span class="resource-label">JS Heap Limit</span>
+        <span class="resource-value" id="devlogger-heap-limit">-</span>
+      </div>
+      <div class="resource-note" id="devlogger-resources-note" style="display: none;">
+        Resource metrics are available only in Chrome.
       </div>
     </div>
     <div class="filter-bar-container"></div>
@@ -150,6 +188,13 @@ function createOverlayDOM(shadow: ShadowRoot): void {
   state.badge = container.querySelector('.devlogger-badge');
   state.logsList = container.querySelector('.devlogger-logs');
   state.filterBar = container.querySelector('.filter-bar-container');
+  state.resourceContainer = container.querySelector('#devlogger-resources');
+  state.resourceStatus = container.querySelector('#devlogger-resources-status');
+  state.resourceMetrics = container.querySelector('#devlogger-resources-metrics');
+  state.resourceNote = container.querySelector('#devlogger-resources-note');
+  state.resourceHeapUsed = container.querySelector('#devlogger-heap-used');
+  state.resourceHeapTotal = container.querySelector('#devlogger-heap-total');
+  state.resourceHeapLimit = container.querySelector('#devlogger-heap-limit');
 
   // Add button handlers
   container.querySelectorAll('[data-action]').forEach((btn) => {
@@ -161,6 +206,9 @@ function createOverlayDOM(shadow: ShadowRoot): void {
           logger.clear();
           channel.sendClear();
           renderLogs();
+          break;
+        case 'resources':
+          toggleResources(button);
           break;
         case 'popout':
           DevLoggerUI.popout();
@@ -188,6 +236,62 @@ function createOverlayDOM(shadow: ShadowRoot): void {
   // Render filter bar and logs
   renderFilterBar();
   renderLogs();
+}
+
+function formatBytes(bytes: number): string {
+  if (!Number.isFinite(bytes)) return '-';
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function updateResourceSupportUI(): void {
+  if (!state.resourceStatus || !state.resourceMetrics || !state.resourceNote) return;
+  if (state.resourceSupported) {
+    state.resourceStatus.textContent = 'Chrome API';
+    state.resourceMetrics.style.display = 'grid';
+    state.resourceNote.style.display = 'none';
+  } else {
+    state.resourceStatus.textContent = 'Unsupported';
+    state.resourceMetrics.style.display = 'none';
+    state.resourceNote.style.display = 'block';
+  }
+}
+
+function updateResourceMetrics(): void {
+  if (!state.resourceSupported) return;
+  const memory = (performance as unknown as { memory?: { usedJSHeapSize: number; totalJSHeapSize: number; jsHeapSizeLimit: number } })
+    .memory;
+  if (!memory || !state.resourceHeapUsed || !state.resourceHeapTotal || !state.resourceHeapLimit) return;
+  state.resourceHeapUsed.textContent = formatBytes(memory.usedJSHeapSize);
+  state.resourceHeapTotal.textContent = formatBytes(memory.totalJSHeapSize);
+  state.resourceHeapLimit.textContent = formatBytes(memory.jsHeapSizeLimit);
+}
+
+function startResourceUpdates(): void {
+  if (state.resourceInterval || !state.resourceSupported) return;
+  updateResourceMetrics();
+  state.resourceInterval = window.setInterval(updateResourceMetrics, 1000);
+}
+
+function stopResourceUpdates(): void {
+  if (state.resourceInterval) {
+    clearInterval(state.resourceInterval);
+    state.resourceInterval = null;
+  }
+}
+
+function toggleResources(button?: HTMLButtonElement): void {
+  if (!state.resourceContainer) return;
+  state.resourceVisible = !state.resourceVisible;
+  state.resourceContainer.style.display = state.resourceVisible ? 'block' : 'none';
+  if (button) {
+    button.classList.toggle('active', state.resourceVisible);
+  }
+  if (state.resourceVisible) {
+    updateResourceSupportUI();
+    startResourceUpdates();
+  } else {
+    stopResourceUpdates();
+  }
 }
 
 /**
@@ -722,12 +826,14 @@ export const DevLoggerUI = {
 
       if (state.spanUnsubscribe) {
         state.spanUnsubscribe();
-        state.spanUnsubscribe = null;
-      }
+      state.spanUnsubscribe = null;
+    }
 
-      if (state.channelUnsubscribe) {
-        state.channelUnsubscribe();
-        state.channelUnsubscribe = null;
+    stopResourceUpdates();
+
+    if (state.channelUnsubscribe) {
+      state.channelUnsubscribe();
+      state.channelUnsubscribe = null;
       }
 
       document.removeEventListener('keydown', handleKeydown);
@@ -745,6 +851,15 @@ export const DevLoggerUI = {
       state.filterBar = null;
       state.toggleBtn = null;
       state.badge = null;
+      state.resourceContainer = null;
+      state.resourceStatus = null;
+      state.resourceMetrics = null;
+      state.resourceNote = null;
+      state.resourceHeapUsed = null;
+      state.resourceHeapTotal = null;
+      state.resourceHeapLimit = null;
+      state.resourceVisible = false;
+      state.resourceInterval = null;
       state.spanUnsubscribe = null;
       state.filter = createDefaultFilterState();
     } catch {
